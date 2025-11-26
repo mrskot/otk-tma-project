@@ -1,4 +1,4 @@
-﻿// server.js - Главный файл Node.js сервера (Обновлено: статус 'new')
+﻿// server.js - Главный файл Node.js сервера (Финальное исправление: master_creator_id)
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -81,21 +81,21 @@ app.post('/api/request/create', async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // !!! ФИНАЛЬНОЕ ИЗМЕНЕНИЕ: Используем 'new' !!!
     const NEW_STATUS = 'new'; 
 
     try {
         const { data, error } = await supabase
             .from('requests') 
             .insert([{ 
-                master_id: telegram_id,
+                // !!! ИСПРАВЛЕНО: Теперь соответствует полю NOT NULL в БД !!!
+                master_creator_id: telegram_id, 
                 section_id: section_id,
                 transformer_type: transformer_type,
                 product_number: product_number,
                 initial_description: initial_description,
                 semi_product: semi_product,
                 drawing_number: drawing_number,
-                status: NEW_STATUS // <-- Исправлено на 'new'
+                status: NEW_STATUS
             }]);
 
         if (error) throw error;

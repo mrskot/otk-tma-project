@@ -1,4 +1,4 @@
-﻿// server.js - Главный файл Node.js сервера (Финальное исправление: master_creator_id)
+﻿// server.js - Главный файл Node.js сервера (Финальный фикс: master_creator_id (text) и UUID моки)
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -35,7 +35,7 @@ app.get('/', (req, res) => {
 // --- 4. API МАРШРУТЫ ---
 
 /**
- * GET /api/user/:telegramId (Остается без изменений)
+ * GET /api/user/:telegramId 
  */
 app.get('/api/user/:telegramId', async (req, res) => {
     const telegramId = req.params.telegramId;
@@ -66,9 +66,14 @@ app.get('/api/user/:telegramId', async (req, res) => {
  * Создает новую заявку в таблице.
  */
 app.post('/api/request/create', async (req, res) => {
+    
+    // ВРЕМЕННЫЕ МОК-ЗНАЧЕНИЯ ДЛЯ ОБЯЗАТЕЛЬНЫХ UUID-ПОЛЕЙ
+    // ЭТО НУЖНО, ПОТОМУ ЧТО ОНИ NOT NULL В ВАШЕЙ БД
+    const MOCK_SECTION_UUID = 'eafc1199-14b7-4127-bfe6-4afc188d6856'; 
+    const MOCK_OTK_ASSIGNEE_UUID = '11111111-3333-4444-5555-666666666666'; 
+
     const { 
         telegram_id, 
-        section_id, 
         transformer_type, 
         product_number,
         initial_description,
@@ -76,27 +81,37 @@ app.post('/api/request/create', async (req, res) => {
         drawing_number
     } = req.body; 
 
-    // Простая валидация
-    if (!telegram_id || !section_id || !product_number) {
+    // Простая валидация 
+    if (!telegram_id || !product_number) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const NEW_STATUS = 'new'; 
+    
+    const payload = {
+        // master_creator_id: Теперь text, заполняем TG ID
+        master_creator_id: telegram_id, 
+        
+        // section_id: UUID, заполняем моком
+        section_id: MOCK_SECTION_UUID, 
+        
+        // otk_assignee_id: UUID, заполняем моком
+        otk_assignee_id: MOCK_OTK_ASSIGNEE_UUID, 
+        
+        transformer_type: transformer_type,
+        product_number: product_number,
+        initial_description: initial_description,
+        semi_product: semi_product,
+        drawing_number: drawing_number,
+        status: NEW_STATUS
+    };
+    
+    console.log("Payload to Supabase:", payload); 
 
     try {
         const { data, error } = await supabase
             .from('requests') 
-            .insert([{ 
-                // !!! ИСПРАВЛЕНО: Теперь соответствует полю NOT NULL в БД !!!
-                master_creator_id: telegram_id, 
-                section_id: section_id,
-                transformer_type: transformer_type,
-                product_number: product_number,
-                initial_description: initial_description,
-                semi_product: semi_product,
-                drawing_number: drawing_number,
-                status: NEW_STATUS
-            }]);
+            .insert([payload]);
 
         if (error) throw error;
 

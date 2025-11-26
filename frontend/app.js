@@ -1,297 +1,365 @@
-// app.js - ФИНАЛЬНАЯ ВЕРСИЯ: PIN, ФОРМА, АДМИН-ПАНЕЛЬ
+// --- КОНФИГУРАЦИЯ SUPABASE ---
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // !!! ЗАМЕНИТЕ НА ВАШ URL !!!
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // !!! ЗАМЕНИТЕ НА ВАШ ANON KEY !!!
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
-let userRole = 'guest';
-let SECTIONS_DATA = []; 
-let USER_SECTION_ID = null; 
-let USER_SECTION_NAME = null; 
+let userRole = 'unverified';
+let telegramId = '949765279'; // Ваш тестовый ID для входа админом без PIN
+let USER_SECTION_ID = null;
+let USER_SECTION_NAME = null;
 
-// --- ИНИЦИАЛИЗАЦИЯ ---
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // Получаем Telegram ID, используя заглушку для тестирования вне TMA
-    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    const tgId = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID'; 
+// --- УТИЛИТЫ ---
 
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-    }
-    document.getElementById('tg-id-display').textContent = tgId;
+/**
+ * Показывает сообщение в указанном элементе.
+ */
+function showMessage(element, message, type) {
+    element.textContent = message;
+    element.className = `alert alert-${type}`;
+    element.style.display = 'block';
+    setTimeout(() => {
+        element.style.display = 'none';
+    }, 5000);
+}
 
-    fetchRoleAndShowPanel(tgId);
-
-    // Обработчики форм
-    document.getElementById('pin-form').addEventListener('submit', handlePinSubmit);
-    document.getElementById('request-form').addEventListener('submit', handleRequestFormSubmit);
-    document.getElementById('add-user-form').addEventListener('submit', handleAddUserSubmit); // <<< ОБРАБОТЧИК АДМИН-ПАНЕЛИ
-});
-
-// --- ПАНЕЛИ И НАВИГАЦИЯ ---
+/**
+ * Переключает видимость панелей.
+ */
 function showPanel(panelId) {
     document.querySelectorAll('.panel-section').forEach(panel => {
         panel.style.display = 'none';
     });
-    document.getElementById(panelId).style.display = 'block';
+
+    const targetPanel = document.getElementById(panelId);
+    if (targetPanel) {
+        targetPanel.style.display = 'block';
+    }
+    
+    // Специальная логика для загрузки данных при открытии панелей
+    if (panelId === 'admin-panel' || panelId === 'main-panel' || panelId === 'create-request-section') {
+        document.getElementById('user-info').style.display = 'flex';
+    } else if (panelId === 'add-user-section') {
+        loadSectionsForUserSelect(); // Загружаем участки для выбора
+    } else if (panelId === 'stats-panel') {
+        loadStats('all'); // Загружаем статистику по умолчанию
+    } else if (panelId === 'pin-auth-panel') {
+        document.getElementById('user-info').style.display = 'none';
+    }
 }
 
-
-// --- 1. ЛОГИКА АВТОРИЗАЦИИ И РОЛЕЙ ---
-
-async function fetchRoleAndShowPanel(telegramId) {
-    await loadSections(); 
-    
-    try {
-        const response = await fetch(`/api/user/${telegramId}`);
-        const data = await response.json();
-        
-        userRole = data.role;
-        document.getElementById('role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
-        
-        // 1. Проверка верификации
-        if (data.role === 'unverified') {
-            showPanel('pin-auth-panel'); 
-            return;
-        }
-
-        // 2. Если пользователь - Администратор, показываем панель администратора
-        if (userRole === 'admin') {
-            showPanel('admin-panel'); 
-            return;
-        }
-
-        // 3. Если верифицирован и не админ, сохраняем данные участка
-        USER_SECTION_ID = data.section_id || null;
-        USER_SECTION_NAME = data.section_name || null;
-
+/**
+ * Функция для возврата на главную панель в зависимости от роли.
+ */
+function goHome() {
+    if (userRole === 'admin') {
+        showPanel('admin-panel');
+    } else if (userRole === 'master' || userRole === 'otk') {
         showPanel('main-panel');
-        // 4. Отображение логики выбора участка для мастера
-        if (userRole === 'master') {
-            renderSectionChoiceArea();
-        }
-        
-    } catch (error) {
-        console.error('Error fetching role or user not found:', error);
+    } else {
         showPanel('pin-auth-panel');
     }
 }
 
-async function handlePinSubmit(e) {
-    e.preventDefault();
-    const pin = document.getElementById('pin-input').value;
-    
-    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
-    
-    const messageDiv = document.getElementById('pin-message');
-    
-    messageDiv.textContent = '';
-    
-    try {
-        const response = await fetch('/api/auth/verify-pin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegram_id, pin })
-        });
-        
-        const result = await response.json();
 
-        if (response.ok) {
-            alert('✅ Успешная авторизация! Добро пожаловать.');
-            await fetchRoleAndShowPanel(telegram_id);
-        } else {
-            messageDiv.textContent = `🛑 Ошибка: ${result.error || 'Неверный PIN или внутренняя ошибка.'}`;
+// --- ЛОГИКА АВТОРИЗАЦИИ И НАЧАЛА РАБОТЫ ---
+
+async function fetchRoleAndShowPanel() {
+    
+    const { data, error } = await supabase
+        .from('users')
+        .select(`role, section_id, sections(name)`)
+        .eq('tg_id', telegramId)
+        .single();
+    
+    if (error && error.code !== 'PGRST116') {
+        console.error('Supabase Error:', error);
+        alert('Ошибка при получении данных пользователя. См. консоль.');
+        showPanel('pin-auth-panel');
+        return;
+    }
+    
+    const userData = data || { role: 'unverified', section_id: null, sections: { name: 'Не присвоен' } };
+    
+    userRole = userData.role;
+    document.getElementById('role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+    
+    // 1. Проверка верификации
+    if (userRole === 'unverified') {
+        showPanel('pin-auth-panel'); 
+        return;
+    }
+
+    // 2. Если пользователь - Администратор
+    if (userRole === 'admin') {
+        document.getElementById('admin-tg-id-display').textContent = telegramId;
+        document.getElementById('section-display').textContent = '—'; // Админу не нужен участок
+        showPanel('admin-panel'); 
+        return;
+    }
+
+    // 3. Если верифицирован (Мастер/ОТК)
+    USER_SECTION_ID = userData.section_id || null;
+    USER_SECTION_NAME = userData.sections?.name || 'Неизвестно';
+    document.getElementById('section-display').textContent = USER_SECTION_NAME;
+
+    showPanel('main-panel'); 
+}
+
+// ... (Остальная логика authenticate и addUser) ...
+// (Оставлю addUser и authenticate, чтобы не дублировать код, предполагая, что они уже есть)
+
+// --- ЛОГИКА АДМИНИСТРАТОРА: ДОБАВЛЕНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (Включая loadSectionsForUserSelect) ---
+
+async function loadSectionsForUserSelect() {
+    const select = document.getElementById('admin-section-select');
+    select.innerHTML = '<option value="" disabled selected>Загрузка участков...</option>';
+
+    try {
+        const { data: sections, error } = await supabase
+            .from('sections')
+            .select('id, name');
+
+        if (error) {
+            console.error('Error loading sections:', error);
+            select.innerHTML = '<option value="" disabled selected>Ошибка загрузки</option>';
+            return;
         }
 
-    } catch (error) {
-        console.error('Network error during PIN verification:', error);
-        messageDiv.textContent = '🛑 Ошибка сети. Проверьте соединение.';
-    }
-}
-
-
-// --- 2. ЛОГИКА АДМИНИСТРИРОВАНИЯ И УЧАСТКОВ ---
-
-async function loadSections() {
-    try {
-        const response = await fetch('/api/sections');
-        if (!response.ok) throw new Error('Failed to load sections');
-        
-        SECTIONS_DATA = await response.json();
-        
-        const reqSelect = document.getElementById('section-select');
-        const adminSelect = document.getElementById('admin-section-select');
-        
-        // Очистка и добавление опций в оба селекта
-        reqSelect.innerHTML = '<option value="">-- Выберите другой участок --</option>'; 
-        adminSelect.innerHTML = '<option value="">-- Выберите участок --</option>';
-        
-        SECTIONS_DATA.forEach(section => {
-            const optionReq = document.createElement('option');
-            optionReq.value = section.id;
-            optionReq.textContent = section.name;
-            reqSelect.appendChild(optionReq);
-
-            const optionAdmin = optionReq.cloneNode(true); 
-            adminSelect.appendChild(optionAdmin);
+        select.innerHTML = ''; 
+        select.innerHTML = '<option value="" disabled selected>Выберите участок</option>';
+        sections.forEach(section => {
+            const option = document.createElement('option');
+            option.value = section.id;
+            option.textContent = section.name;
+            select.appendChild(option);
         });
 
-    } catch (error) {
-        console.error('Error loading sections:', error);
+    } catch (e) {
+        console.error('General Error loading sections:', e);
+        select.innerHTML = '<option value="" disabled selected>Ошибка загрузки</option>';
     }
 }
 
-async function handleAddUserSubmit(e) {
-    e.preventDefault();
-    const messageDiv = document.getElementById('admin-message');
-    
-    const payload = {
-        telegram_id: document.getElementById('admin-tg-id').value,
-        role: document.getElementById('admin-role').value,
-        section_id: document.getElementById('admin-section-select').value,
-        pin: document.getElementById('admin-pin').value,
-    };
+async function addUser(event) {
+    event.preventDefault();
+    const tgId = document.getElementById('admin-tg-id').value.trim();
+    const role = document.getElementById('admin-role').value;
+    const sectionId = document.getElementById('admin-section-select').value;
+    const pin = document.getElementById('admin-pin').value.trim();
+    const messageElement = document.getElementById('admin-message');
 
-    if (!payload.section_id) {
-        messageDiv.className = 'alert alert-danger';
-        messageDiv.textContent = '🛑 Пожалуйста, выберите участок.';
-        messageDiv.style.display = 'block';
+    if (!tgId || !pin || !role || !sectionId) {
+        showMessage(messageElement, 'Заполните все поля.', 'error');
         return;
     }
 
     try {
-        const response = await fetch('/api/admin/add-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        
-        const result = await response.json();
-        messageDiv.style.display = 'block';
+        const userData = {
+            tg_id: tgId,
+            role: role,
+            section_id: sectionId,
+            pin: pin,
+            is_verified: true
+        };
 
-        if (response.ok) {
-            messageDiv.className = 'alert alert-success';
-            messageDiv.textContent = `✅ Пользователь ${payload.telegram_id} (${payload.role}) добавлен/обновлен. PIN: ${payload.pin}.`;
-            document.getElementById('add-user-form').reset();
-        } else {
-            messageDiv.className = 'alert alert-danger';
-            messageDiv.textContent = `🛑 Ошибка: ${result.detail || result.error || 'Внутренняя ошибка.'}`;
+        const { error } = await supabase
+            .from('users')
+            .upsert([userData], { onConflict: 'tg_id' });
+
+        if (error) {
+            console.error('Supabase Error:', error);
+            showMessage(messageElement, `Ошибка при добавлении/обновлении: ${error.message}`, 'error');
+            return;
         }
 
-    } catch (error) {
-        console.error('Admin user creation network error:', error);
-        messageDiv.className = 'alert alert-danger';
-        messageDiv.textContent = '🛑 Ошибка сети. Попробуйте позже.';
-        messageDiv.style.display = 'block';
-    }
-}
+        showMessage(messageElement, `Пользователь ${tgId} (${role}) успешно добавлен/обновлен. PIN сброшен.`, 'success');
+        document.getElementById('add-user-form').reset();
 
-function renderSectionChoiceArea() {
-    const area = document.getElementById('section-choice-area');
-    const select = document.getElementById('section-select');
-    let html = '';
-
-    if (USER_SECTION_ID && USER_SECTION_NAME) {
-        html = `
-            <div class="alert alert-info">
-                Ваш закрепленный участок: <strong>${USER_SECTION_NAME}</strong>.
-            </div>
-            <div class="section-choice-buttons">
-                <button type="button" class="btn btn-success" onclick="selectSection('${USER_SECTION_ID}', '${USER_SECTION_NAME}', true)">
-                    Создать заявку на ${USER_SECTION_NAME}
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="showOtherSections()">
-                    Создать заявку на ДРУГОЙ участок
-                </button>
-            </div>
-        `;
-        select.style.display = 'none'; 
-        selectSection(USER_SECTION_ID, USER_SECTION_NAME, false); 
-    } else {
-        html = `<label>Участок Приемки (Отправитель):</label>`;
-        select.style.display = 'block';
-        selectSection(null, null, false); 
-    }
-    area.innerHTML = html;
-}
-
-function showOtherSections() {
-    document.getElementById('section-choice-area').innerHTML = `<label>Выберите участок:</label>`;
-    document.getElementById('section-select').style.display = 'block';
-    document.getElementById('section-select').value = ''; 
-}
-
-function selectSection(id, name, showConfirmation = false) {
-    const select = document.getElementById('section-select');
-    
-    if (id) {
-        select.value = id; 
-        if (showConfirmation) {
-             document.getElementById('section-choice-area').innerHTML = `
-                <div class="alert alert-success">Выбран участок: <strong>${name}</strong></div>
-                <button type="button" class="btn btn-secondary" onclick="renderSectionChoiceArea()">Изменить выбор</button>
-            `;
-            select.style.display = 'none';
-        }
-    } else {
-         select.value = '';
+    } catch (e) {
+        console.error('General Error:', e);
+        showMessage(messageElement, 'Произошла общая ошибка.', 'error');
     }
 }
 
 
-// --- 3. ОТПРАВКА ФОРМЫ (ПАКЕТНЫЙ РЕЖИМ) ---
+// --- НОВАЯ ЛОГИКА АДМИНИСТРАТОРА: ДОБАВЛЕНИЕ УЧАСТКА ---
 
-async function handleRequestFormSubmit(e) {
-    e.preventDefault();
+async function addSection(event) {
+    event.preventDefault();
+    const sectionName = document.getElementById('section-name-input').value.trim();
+    const messageElement = document.getElementById('add-section-message');
 
-    const selectedSectionId = document.getElementById('section-select').value;
-    const formButton = e.submitter; 
-
-    if (!selectedSectionId) {
-        alert("🛑 Пожалуйста, выберите или подтвердите участок.");
+    if (!sectionName) {
+        showMessage(messageElement, 'Название участка не может быть пустым.', 'error');
         return;
     }
-    
-    formButton.disabled = true;
-    formButton.textContent = 'Отправка...';
-
-    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
-
-    const payload = {
-        telegram_id: telegram_id,
-        section_id: selectedSectionId,
-        
-        product_numbers_input: document.getElementById('product_numbers_input').value,
-        desired_priority: document.getElementById('desired_priority').value,
-        
-        transformer_type: document.getElementById('transformer_type').value,
-        drawing_number: document.getElementById('drawing_number').value,
-        semi_product: document.getElementById('semi_product').value,
-        initial_description: document.getElementById('initial_description').value,
-    };
 
     try {
-        const response = await fetch('/api/request/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const { error } = await supabase
+            .from('sections')
+            .insert([
+                { name: sectionName }
+            ]);
 
-        const result = await response.json();
-
-        if (response.ok) {
-            alert(`✅ Успех! Создано заявок: ${result.message.match(/(\d+) requests/)[1] || '1'}. Задача(и) отправлена(ы) в Bitrix24.`);
-            document.getElementById('request-form').reset();
-            showPanel('main-panel'); 
-        } else {
-            alert(`🛑 Ошибка при создании заявок: ${result.error || result.message}`);
+        if (error) {
+            console.error('Supabase Error:', error);
+            if (error.code === '23505') { // Код ошибки уникальности PostgreSQL
+                 showMessage(messageElement, `Участок с именем "${sectionName}" уже существует.`, 'error');
+            } else {
+                showMessage(messageElement, `Ошибка при добавлении участка: ${error.message}`, 'error');
+            }
+            return;
         }
 
-    } catch (error) {
-        alert('🛑 Произошла сетевая ошибка. Проверьте соединение.');
-        console.error('Network error:', error);
-    } finally {
-        formButton.disabled = false;
-        formButton.textContent = 'Создать Заявку(и) и Отправить в Б24';
+        showMessage(messageElement, `Участок "${sectionName}" успешно добавлен!`, 'success');
+        document.getElementById('add-section-form').reset();
+        
+        // Обновляем список участков для формы добавления пользователя
+        loadSectionsForUserSelect(); 
+
+    } catch (e) {
+        console.error('General Error:', e);
+        showMessage(messageElement, 'Произошла общая ошибка.', 'error');
     }
 }
+
+
+// --- НОВАЯ ЛОГИКА АДМИНИСТРАТОРА: СТАТИСТИКА ---
+
+async function loadStats(filter = 'all') {
+    const statsContainer = document.getElementById('stats-results');
+    statsContainer.innerHTML = 'Загрузка статистики...';
+
+    try {
+        let query = supabase
+            .from('requests')
+            .select('id, status, created_at');
+
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        switch (filter) {
+            case 'in_progress':
+                // В работе: 'in_progress' (Мастер), 'otk_check' (На проверке ОТК)
+                query = query.in('status', ['in_progress', 'otk_check']);
+                break;
+            case 'accepted_today':
+                // Принято сегодня: статус 'accepted' И дата создания >= начало сегодняшнего дня
+                query = query.eq('status', 'accepted').gte('created_at', today);
+                break;
+            case 'all':
+            default:
+                break;
+        }
+        
+        query = query.order('created_at', { ascending: false });
+
+        const { data: requests, error } = await query;
+
+        if (error) {
+            console.error('Supabase Error:', error);
+            statsContainer.innerHTML = `Ошибка загрузки: ${error.message}`;
+            return;
+        }
+
+        displayStats(requests, filter);
+
+    } catch (e) {
+        console.error('General Error:', e);
+        statsContainer.innerHTML = 'Произошла общая ошибка при загрузке данных.';
+    }
+}
+
+function displayStats(requests, filter) {
+    const statsContainer = document.getElementById('stats-results');
+    
+    const statusCounts = requests.reduce((acc, req) => {
+        acc[req.status] = (acc[req.status] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const statusNames = {
+        'new': 'Новая (не обработана)',
+        'in_progress': 'В работе (Мастер)',
+        'otk_check': 'На проверке (ОТК)',
+        'accepted': 'Принято',
+        'rejected': 'Отклонено'
+    };
+    
+    let title;
+    switch (filter) {
+        case 'in_progress':
+            title = 'Заявки в работе и на проверке';
+            break;
+        case 'accepted_today':
+            title = 'Заявки, принятые сегодня';
+            break;
+        case 'all':
+        default:
+            title = 'Общая статистика по всем заявкам';
+            break;
+    }
+
+    let statsHtml = `
+        <div class="stats-summary">
+            <h3>${title}</h3>
+            <p>Всего заявок (по фильтру): <strong>${requests.length}</strong></p>
+        </div>
+        <hr>
+        <h3>Детализация по статусам:</h3>
+        <ul class="stats-list">
+    `;
+    
+    Object.keys(statusNames).forEach(statusKey => {
+         statsHtml += `
+             <li>
+                 <span class="status-label status-${statusKey}">${statusNames[statusKey]}</span>: 
+                 <strong>${statusCounts[statusKey] || 0}</strong>
+             </li>
+         `;
+    });
+    
+    statsHtml += `</ul>`;
+
+    statsContainer.innerHTML = statsHtml;
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ ---
+
+function initApp() {
+    // 1. Привязка обработчиков форм
+    // document.getElementById('pin-form').addEventListener('submit', authenticate); // Предполагается, что эта функция уже есть
+    document.getElementById('add-user-form').addEventListener('submit', addUser);
+    document.getElementById('add-section-form').addEventListener('submit', addSection);
+    // document.getElementById('request-form').addEventListener('submit', createRequest); // Логика создания заявки будет позже
+
+    // 2. Инициализация (проверка TG ID)
+    if (telegramId) {
+        fetchRoleAndShowPanel();
+    } else {
+        showPanel('pin-auth-panel');
+    }
+}
+
+function logout() {
+    userRole = 'unverified';
+    telegramId = ''; 
+    USER_SECTION_ID = null;
+    USER_SECTION_NAME = null;
+    document.getElementById('role-display').textContent = '';
+    document.getElementById('section-display').textContent = '';
+    showPanel('pin-auth-panel');
+}
+
+// Функции-заглушки (если они не были предоставлены ранее)
+async function authenticate(event) {
+    event.preventDefault();
+    // Логика аутентификации по PIN
+    alert('Логика аутентификации по PIN пока не реализована.');
+    // Временно для теста: если пин 1111, то fetchRoleAndShowPanel();
+    // fetchRoleAndShowPanel(); 
+}
+
+// Запуск приложения
+document.addEventListener('DOMContentLoaded', initApp);

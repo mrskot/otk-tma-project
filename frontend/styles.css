@@ -1,79 +1,211 @@
-/* C:\otk_tma_project\frontend\styles.css */
+/* style.css */
 
-/* Базовые стили для Telegram Mini App */
+/* Общие стили */
 body {
     font-family: Arial, sans-serif;
-    padding: 10px;
+    background-color: #f4f4f9;
+    color: #333;
     margin: 0;
-    /* Использование переменных Telegram для адаптации темы */
-    background-color: var(--tg-theme-bg-color, #f4f4f4); 
-    color: var(--tg-theme-text-color, #333333);
-    line-height: 1.6;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 header {
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #ccc);
+    background-color: #007bff;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+#user-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 0.9em;
+}
+
+main {
+    padding: 20px;
+    flex: 1;
+    max-width: 800px;
+    width: 100%;
+    margin: 20px auto;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+footer {
+    text-align: center;
+    padding: 10px;
+    background-color: #e9ecef;
+    color: #6c757d;
+    font-size: 0.8em;
+}
+
+/* Формы и элементы управления */
+.form-group {
     margin-bottom: 15px;
 }
 
-/* Стили для заголовков */
-h1, h2 {
-    color: var(--tg-theme-text-color, #000);
-    margin: 5px 0;
-}
-h3 {
-    color: var(--tg-theme-hint-color, #666);
-    margin: 10px 0 5px;
-}
-
-/* Стили для форм */
-input[type="text"], textarea, select {
-    width: 95%;
-    padding: 8px;
-    margin: 5px 0 15px 0;
-    display: inline-block;
-    border: 1px solid var(--tg-theme-secondary-bg-color, #ccc);
-    border-radius: 4px;
-    box-sizing: border-box;
-    background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-    color: var(--tg-theme-text-color, #000000);
-}
 label {
-    font-size: 0.9em;
-    color: var(--tg-theme-hint-color, #999);
-}
-
-/* Стили для кнопок (должны стать синими и активными) */
-button {
-    background-color: var(--tg-theme-button-color, #26a5e4);
-    color: var(--tg-theme-button-text-color, #ffffff);
-    border: none;
-    padding: 10px 15px;
-    margin: 5px 5px 5px 0;
-    cursor: pointer;
-    border-radius: 5px;
+    display: block;
+    margin-bottom: 5px;
     font-weight: bold;
 }
-button:hover {
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; 
+}
+
+/* Кнопки */
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+    margin-right: 10px;
+    text-wrap: nowrap;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-logout {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 10px;
+}
+
+.btn:hover {
     opacity: 0.9;
 }
 
-/* Скрываем все экраны, кроме активного */
-.screen {
-    display: none;
-    padding-bottom: 50px; /* Отступ от нижнего края */
-}
-.screen.active {
-    display: block;
+/* Секции и сообщения */
+.panel-section {
+    padding: 20px 0;
 }
 
-/* Конкретные стили для панели */
-#main-dashboard h3, #main-dashboard p {
-    display: inline-block;
-    margin-right: 20px;
-}
-#main-dashboard p {
+.alert {
+    padding: 10px;
+    border-radius: 4px;
     font-weight: bold;
-    color: var(--tg-theme-text-color, #000);
 }
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-color: #bee5eb;
+}
+
+/* Кнопки навигации по секциям (Admin Panel) */
+.section-choice-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* --- Стили для Статистики --- */
+
+.btn-stats {
+    background-color: #ffc107; /* Yellowish theme for stats */
+    color: #343a40;
+    margin-bottom: 10px;
+}
+
+.stats-summary {
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-left: 5px solid #17a2b8;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.stats-summary h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.stats-list {
+    list-style: none;
+    padding: 0;
+}
+
+.stats-list li {
+    padding: 8px 0;
+    border-bottom: 1px dotted #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stats-list li:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-weight: normal;
+    color: white;
+    min-width: 150px; 
+    text-align: center;
+}
+
+.status-new { background-color: #6c757d; } 
+.status-in_progress { background-color: #007bff; } 
+.status-otk_check { background-color: #ffc107; color: #333; } 
+.status-accepted { background-color: #28a745; } 
+.status-rejected { background-color: #dc3545; }

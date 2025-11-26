@@ -2,10 +2,10 @@
 // 1. SUPABASE CONFIGURATION
 // ==============================================================================
 // !!! ВСТАВЬТЕ СЮДА ВАШИ РЕАЛЬНЫЕ КЛЮЧИ SUPABASE !!!
-const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
 
-// Корректная инициализация клиента Supabase с использованием деструктуризации
+// Корректная инициализация клиента Supabase
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -27,7 +27,7 @@ let SECTIONS = [];
 
 function showMessage(element, message, type) {
     element.textContent = message;
-    element.className = type === 'success' ? 'alert alert-success' : 'alert alert-error';
+    element.className = `alert alert-${type}`;
     element.style.display = 'block';
     setTimeout(() => {
         element.style.display = 'none';
@@ -45,7 +45,6 @@ function showPanel(panelId) {
         console.error('Panel not found:', panelId);
     }
     
-    // Специальная логика для загрузки данных и настройки интерфейса
     if (panelId === 'admin-panel') {
         loadAdminData();
         const titleDisplay = document.getElementById('admin-title-display');
@@ -91,8 +90,6 @@ function generatePin() {
 async function fetchRoleAndShowPanel() {
     
     const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    
-    // Если WebApp не дает ID, используем плейсхолдер
     telegramId = tgUser ? tgUser.id.toString() : '999999999'; 
     
     const adminTgIdDisplay = document.getElementById('admin-tg-id-display');
@@ -100,14 +97,12 @@ async function fetchRoleAndShowPanel() {
         adminTgIdDisplay.textContent = telegramId;
     }
     
-    // 1. Поиск пользователя по Telegram ID (Используем telegram_id)
     const { data, error } = await supabaseClient
         .from('users')
         .select(`role, is_verified, section_id, sections(name)`)
         .eq('telegram_id', telegramId) 
         .single();
     
-    // 2. Проверка: Пользователь не найден или не верифицирован
     if (error || !data || !data.is_verified) {
         showPanel('pin-auth-panel');
         return;
@@ -119,7 +114,6 @@ async function fetchRoleAndShowPanel() {
         roleDisplay.textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
     }
 
-    // 3. Администратор ИЛИ Супер Администратор: на Admin Dashboard
     if (userRole === 'admin' || userRole === 'super_admin') {
         const sectionDisplay = document.getElementById('section-display');
         if (sectionDisplay) {
@@ -129,7 +123,6 @@ async function fetchRoleAndShowPanel() {
         return;
     }
 
-    // 4. Верифицированный пользователь (Мастер/ОТК)
     USER_SECTION_ID = data.section_id || null;
     USER_SECTION_NAME = data.sections?.name || 'Неизвестно';
     const sectionDisplay = document.getElementById('section-display');
@@ -153,7 +146,6 @@ async function authenticate(event) {
         return;
     }
     
-    // 1. Находим не верифицированного пользователя по PIN (Используем pin)
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
@@ -167,7 +159,6 @@ async function authenticate(event) {
         return;
     }
 
-    // 2. Если PIN найден, обновляем запись
     const { error: updateError } = await supabaseClient
         .from('users')
         .update({ 
@@ -221,12 +212,27 @@ function renderUsersTable(users) {
 
     users.forEach(user => {
         const row = tableBody.insertRow();
-        row.insertCell().textContent = user.id;
-        row.insertCell().textContent = user.role;
-        row.insertCell().textContent = user.telegram_id || '—';
-        row.insertCell().textContent = user.pin || '—';
-        row.insertCell().textContent = user.sections ? user.sections.name : '—';
         
+        // 1. Колонка: Пользователь / Участок
+        const userCell = row.insertCell();
+        userCell.innerHTML = `
+            <strong>${user.sections ? user.sections.name : '—'}</strong>
+            <span class="subtle-info">ID: ${user.id}</span>
+            <span class="subtle-info">TG ID: ${user.telegram_id || 'Не привязан'}</span>
+        `;
+        
+        // 2. Колонка: Роль / Статус
+        const roleCell = row.insertCell();
+        const statusText = user.is_verified ? 'Верифицирован' : 'Ожидает PIN';
+        const pinText = user.pin ? `PIN: ${user.pin}` : 'PIN: —';
+        
+        roleCell.innerHTML = `
+            ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+            <span class="subtle-info">${statusText}</span>
+            <span class="subtle-info">${pinText}</span>
+        `;
+        
+        // 3. Колонка: Действие
         const actionCell = row.insertCell();
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Удалить';
@@ -259,9 +265,15 @@ function renderSectionsTable(sections) {
 
     sections.forEach(section => {
         const row = tableBody.insertRow();
-        row.insertCell().textContent = section.id;
-        row.insertCell().textContent = section.name;
         
+        // 1. Колонка: ID / Название
+        const sectionCell = row.insertCell();
+        sectionCell.innerHTML = `
+            <strong>${section.name}</strong>
+            <span class="subtle-info">ID: ${section.id}</span>
+        `;
+        
+        // 2. Колонка: Действие
         const actionCell = row.insertCell();
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Удалить';
@@ -373,20 +385,35 @@ async function deleteUser(userId) {
     }
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Сначала обнуляет связи, затем удаляет
 async function deleteSection(sectionId) {
     if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
 
-    const { error } = await supabaseClient
+    // Шаг 1: Обнуляем section_id у всех пользователей, которые ссылаются на этот участок
+    const { error: updateError } = await supabaseClient
+        .from('users')
+        .update({ section_id: null })
+        .eq('section_id', sectionId);
+
+    if (updateError) {
+        console.error('Error unlinking users from section:', updateError);
+        alert(`Ошибка при отвязке пользователей: ${updateError.message}`);
+        return;
+    }
+
+    // Шаг 2: Удаляем сам участок
+    const { error: deleteError } = await supabaseClient
         .from('sections')
         .delete()
         .eq('id', sectionId);
 
-    if (error) {
-        console.error('Error deleting section:', error);
-        alert(`Ошибка удаления: ${error.message}`);
+    if (deleteError) {
+        console.error('Error deleting section:', deleteError);
+        alert(`Ошибка удаления участка: ${deleteError.message}`);
     } else {
         loadSections(); 
         loadUsers(); 
+        alert('✅ Участок и все его связи успешно удалены.');
     }
 }
 

@@ -1,59 +1,103 @@
-/* style.css */
-
-/* Общие стили */
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f9;
-    color: #333;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+/* ======================================================= */
+/* 1. БАЗОВЫЕ СТИЛИ */
+/* ======================================================= */
+:root {
+    --primary-color: #007bff; /* Чистый синий для акцентов */
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --background-color: #f8f9fa; /* Очень светлый фон */
+    --panel-bg: #ffffff;
+    --border-radius: 6px;
+    --shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+    --text-color: #343a40; /* Темный текст */
+    --subtle-text: #6c757d; /* Серый для мелкой информации */
 }
 
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+main {
+    padding: 10px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* ======================================================= */
+/* 2. HEADER & ИНФОБАР */
+/* ======================================================= */
 header {
-    background-color: #007bff;
-    color: white;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: var(--panel-bg);
+    border-bottom: 1px solid #e9ecef;
+    padding: 15px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 header h1 {
-    margin: 0;
-    font-size: 1.5em;
+    margin: 0 0 5px 0;
+    font-size: 1.4em;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-align: center;
 }
 
 #user-info {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 20px;
-    font-size: 0.9em;
+    font-size: 0.85em;
+    color: var(--subtle-text);
 }
 
-main {
+#user-info p {
+    margin: 0;
+    padding-left: 5px;
+}
+
+.user-details {
+    display: flex;
+    gap: 15px;
+    font-weight: 500;
+}
+
+/* ======================================================= */
+/* 3. ОСНОВНЫЕ ПАНЕЛИ И ФОРМЫ */
+/* ======================================================= */
+.panel-section {
+    background: var(--panel-bg);
     padding: 20px;
-    flex: 1;
-    max-width: 800px;
-    width: 100%;
-    margin: 20px auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 15px;
 }
 
-footer {
-    text-align: center;
-    padding: 10px;
-    background-color: #e9ecef;
-    color: #6c757d;
-    font-size: 0.8em;
+h2 {
+    color: var(--text-color);
+    border-bottom: 1px solid #f1f1f1;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    font-weight: 600;
 }
 
-/* Формы и элементы управления */
+h3 {
+    color: var(--primary-color);
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    font-weight: 500;
+}
+
 .form-group {
     margin-bottom: 15px;
 }
@@ -61,151 +105,105 @@ footer {
 label {
     display: block;
     margin-bottom: 5px;
-    font-weight: bold;
+    font-weight: 500;
+    font-size: 0.9em;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="number"],
-select,
-textarea {
+input, select, textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
     border-radius: 4px;
-    box-sizing: border-box; 
+    box-sizing: border-box;
+    font-size: 1em;
 }
 
-/* Кнопки */
+/* ======================================================= */
+/* 4. КНОПКИ И ГРУППЫ КНОПОК */
+/* ======================================================= */
 .btn {
-    padding: 10px 15px;
+    padding: 8px 15px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
-    margin-right: 10px;
-    text-wrap: nowrap;
+    margin-right: 8px;
+    margin-top: 5px;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.75em;
+    margin-right: 5px;
 }
 
-.btn-primary {
-    background-color: #007bff;
-    color: white;
-}
+.btn-primary { background-color: var(--primary-color); color: white; }
+.btn-primary:hover { background-color: #0056b3; }
 
-.btn-secondary {
-    background-color: #6c757d;
-    color: white;
-}
+.btn-secondary { background-color: var(--secondary-color); color: white; }
+.btn-secondary:hover { background-color: #5a6268; }
 
-.btn-success {
-    background-color: #28a745;
-    color: white;
-}
+.btn-success { background-color: var(--success-color); color: white; }
+.btn-success:hover { background-color: #1e7e34; }
 
-.btn-info {
-    background-color: #17a2b8;
-    color: white;
-}
+.btn-danger { background-color: var(--danger-color); color: white; }
+.btn-danger:hover { background-color: #c82333; }
 
-.btn-logout {
-    background-color: #dc3545;
-    color: white;
-    padding: 5px 10px;
-}
-
-.btn:hover {
-    opacity: 0.9;
-}
-
-/* Секции и сообщения */
-.panel-section {
-    padding: 20px 0;
-}
-
-.alert {
-    padding: 10px;
-    border-radius: 4px;
-    font-weight: bold;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-    border-color: #c3e6cb;
-}
-
-.alert-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-color: #f5c6cb;
-}
-
-.alert-info {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border-color: #bee5eb;
-}
-
-/* Кнопки навигации по секциям (Admin Panel) */
 .section-choice-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px 0;
+}
+
+/* ======================================================= */
+/* 5. СООБЩЕНИЯ И ТАБЛИЦЫ */
+/* ======================================================= */
+.alert {
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+
+.alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;}
+.alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 15px;
 }
 
-/* --- Стили для Статистики --- */
-
-.btn-stats {
-    background-color: #ffc107; /* Yellowish theme for stats */
-    color: #343a40;
-    margin-bottom: 10px;
+table thead tr {
+    background-color: #f1f1f1;
+    color: var(--text-color);
 }
 
-.stats-summary {
-    padding: 10px;
-    border: 1px solid #dee2e6;
-    border-left: 5px solid #17a2b8;
-    border-radius: 4px;
-    margin-bottom: 15px;
-}
-
-.stats-summary h3 {
-    margin-top: 0;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-}
-
-.stats-list {
-    list-style: none;
-    padding: 0;
-}
-
-.stats-list li {
-    padding: 8px 0;
-    border-bottom: 1px dotted #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.stats-list li:last-child {
-    border-bottom: none;
-}
-
-.status-label {
-    padding: 3px 6px;
-    border-radius: 3px;
+table th, table td {
+    padding: 8px 8px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
     font-size: 0.9em;
-    font-weight: normal;
-    color: white;
-    min-width: 150px; 
-    text-align: center;
 }
 
-.status-new { background-color: #6c757d; } 
-.status-in_progress { background-color: #007bff; } 
-.status-otk_check { background-color: #ffc107; color: #333; } 
-.status-accepted { background-color: #28a745; } 
-.status-rejected { background-color: #dc3545; }
+/* Стиль для мелкого серого шрифта */
+.subtle-info {
+    font-size: 0.75em; /* Мельче */
+    color: var(--subtle-text); /* Серый */
+    display: block;
+    margin-top: 2px;
+}
+
+/* ======================================================= */
+/* 6. FOOTER */
+/* ======================================================= */
+footer {
+    text-align: center;
+    padding: 15px;
+    color: #999;
+    font-size: 0.75em;
+}

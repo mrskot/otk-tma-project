@@ -1,425 +1,180 @@
-// ==============================================================================
-// 1. SUPABASE CONFIGURATION
-// ==============================================================================
-// !!! ЗАМЕНИТЕ ЭТИ ПЛЕЙСХОЛДЕРЫ НА ВАШИ РЕАЛЬНЫЕ КЛЮЧИ SUPABASE !!!
-const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMA-ERP Production Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
+        header { background-color: #4a76a8; color: white; padding: 15px; text-align: center; }
+        main { padding: 20px; max-width: 800px; margin: 0 auto; }
+        .panel-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="password"], input[type="number"], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-logout { background-color: #dc3545; color: white; float: right; margin-top: -30px; }
+        .alert-success { background-color: #d4edda; color: #155724; padding: 10px; border: 1px solid #c3e6cb; border-radius: 4px; }
+        .alert-error { background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; border-radius: 4px; }
+        .section-choice-buttons button { margin-bottom: 10px; }
+        footer { text-align: center; padding: 10px; color: #666; font-size: 0.8em; }
+    </style>
+</head>
+<body>
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <header>
+        <h1>TMA-ERP: Управление Производством</h1>
+        <div id="user-info" style="padding-bottom: 10px;">
+            <p style="margin: 0; display: inline-block;">Роль: <span id="role-display"></span> | Участок: <span id="section-display"></span></p>
+            <button type="button" class="btn btn-logout" onclick="logout()">Выход</button>
+        </div>
+    </header>
 
-
-// ==============================================================================
-// 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ==============================================================================
-let userRole = 'unverified';
-// ВНИМАНИЕ: Для теста используется ваш ID. В боевом режиме он определяется через Telegram API.
-let telegramId = null; 
-let USER_SECTION_ID = null;
-let USER_SECTION_NAME = null;
-let USERS = []; 
-let SECTIONS = []; 
-
-
-// ==============================================================================
-// 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ==============================================================================
-
-function showMessage(element, message, type) {
-    element.textContent = message;
-    element.className = type === 'success' ? 'alert alert-success' : 'alert alert-error';
-    element.style.display = 'block';
-    setTimeout(() => {
-        element.style.display = 'none';
-    }, 5000);
-}
-
-function showPanel(panelId) {
-    document.querySelectorAll('.panel-section').forEach(panel => {
-        panel.style.display = 'none';
-    });
-    const panelToShow = document.getElementById(panelId);
-    if (panelToShow) {
-        panelToShow.style.display = 'block';
-    } else {
-        console.error('Panel not found:', panelId);
-    }
-    
-    // Специальная логика для загрузки данных и настройки интерфейса
-    if (panelId === 'admin-panel') {
-        loadAdminData();
-        const titleDisplay = document.getElementById('admin-title-display');
-        if (titleDisplay) {
-            titleDisplay.textContent = (userRole === 'super_admin') ? '👑 Панель Супер Администратора' : '👑 Панель Администратора';
-        }
-    } else if (panelId === 'add-user-section') {
-        // Показываем/скрываем опцию "Супер Администратор" в зависимости от текущей роли
-        const superAdminOption = document.querySelector('#user-role option[value="super_admin"]');
-        if (superAdminOption) {
-            superAdminOption.style.display = (userRole === 'super_admin') ? 'block' : 'none';
-        }
-        loadSections(); // Убедимся, что селекты участков актуальны
-    } else if (panelId === 'stats-panel') {
-        loadStats('all'); 
-    }
-}
-
-function goHome() {
-    if (userRole === 'admin' || userRole === 'super_admin') {
-        showPanel('admin-panel');
-    } else if (userRole === 'master' || userRole === 'otk') {
-        showPanel('main-panel');
-    } else {
-        showPanel('pin-auth-panel');
-    }
-}
-
-function logout() {
-    // В WebApp это обычно не требуется, но для отладки можно сбросить переменные
-    userRole = 'unverified';
-    telegramId = null;
-    showPanel('pin-auth-panel');
-}
-
-function generatePin() {
-    return Math.floor(1000 + Math.random() * 9000).toString(); // 4-значный PIN
-}
-
-
-// ==============================================================================
-// 4. ЛОГИКА АВТОРИЗАЦИИ И НАЧАЛА РАБОТЫ
-// ==============================================================================
-
-async function fetchRoleAndShowPanel() {
-    
-    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    telegramId = tgUser ? tgUser.id.toString() : '949765279'; // Тестовый ID для админа
-    
-    const adminTgIdDisplay = document.getElementById('admin-tg-id-display');
-    if (adminTgIdDisplay) {
-        adminTgIdDisplay.textContent = telegramId;
-    }
-    
-    // 1. Поиск пользователя по TG ID
-    const { data, error } = await supabase
-        .from('users')
-        .select(`role, is_verified, section_id, sections(name)`)
-        .eq('tg_id', telegramId)
-        .single();
-    
-    // 2. Проверка: Пользователь не найден или не верифицирован
-    if (error || !data || !data.is_verified) {
-        showPanel('pin-auth-panel');
-        return;
-    }
-    
-    userRole = data.role;
-    const roleDisplay = document.getElementById('role-display');
-    if (roleDisplay) {
-        roleDisplay.textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
-    }
-
-    // 3. Администратор ИЛИ Супер Администратор: на Admin Dashboard
-    if (userRole === 'admin' || userRole === 'super_admin') {
-        const sectionDisplay = document.getElementById('section-display');
-        if (sectionDisplay) {
-             sectionDisplay.textContent = 'Администрация'; 
-        }
-        showPanel('admin-panel'); 
-        return;
-    }
-
-    // 4. Верифицированный пользователь (Мастер/ОТК)
-    USER_SECTION_ID = data.section_id || null;
-    USER_SECTION_NAME = data.sections?.name || 'Неизвестно';
-    const sectionDisplay = document.getElementById('section-display');
-    if (sectionDisplay) {
-        sectionDisplay.textContent = USER_SECTION_NAME;
-    }
-    
-    showPanel('main-panel'); 
-}
-
-async function authenticate(event) {
-    event.preventDefault();
-    const pin = document.getElementById('pin-input').value;
-    const messageElement = document.getElementById('pin-message');
-
-    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    const currentTelegramId = tgUser ? tgUser.id.toString() : null;
-    
-    if (!currentTelegramId) {
-        showMessage(messageElement, 'Невозможно получить ваш Telegram ID. Используйте WebApp.', 'error');
-        return;
-    }
-    
-    // 1. Находим не верифицированного пользователя по PIN (4-8 цифр)
-    const { data: userToVerify, error: pinError } = await supabase
-        .from('users')
-        .select('id, tg_id, role')
-        .eq('pin', pin)
-        .is('tg_id', null) 
-        .eq('is_verified', false) 
-        .single();
-    
-    if (pinError || !userToVerify) {
-        showMessage(messageElement, 'Неверный PIN-код или пользователь уже верифицирован.', 'error');
-        return;
-    }
-
-    // 2. Если PIN найден, обновляем запись
-    const { error: updateError } = await supabase
-        .from('users')
-        .update({ 
-            tg_id: currentTelegramId, 
-            pin: null, 
-            is_verified: true
-        })
-        .eq('id', userToVerify.id);
-
-    if (updateError) {
-        console.error('Update Error:', updateError);
-        showMessage(messageElement, 'Ошибка обновления статуса верификации.', 'error');
-        return;
-    }
-
-    document.getElementById('pin-input').value = '';
-    showMessage(messageElement, 'Успешная верификация! Добро пожаловать.', 'success');
-    
-    fetchRoleAndShowPanel();
-}
-
-
-// ==============================================================================
-// 5. АДМИН-ПАНЕЛЬ: ЛОГИКА УПРАВЛЕНИЯ
-// ==============================================================================
-
-async function loadAdminData() {
-    await Promise.all([loadUsers(), loadSections()]);
-}
-
-async function loadUsers() {
-    const { data, error } = await supabase
-        .from('users')
-        .select(`id, role, tg_id, pin, is_verified, sections(name)`)
-        .order('id', { ascending: true });
-
-    if (error) {
-        console.error('Error loading users:', error);
-        return;
-    }
-    
-    USERS = data;
-    renderUsersTable(data);
-}
-
-function renderUsersTable(users) {
-    const tableBody = document.getElementById('users-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
-
-    users.forEach(user => {
-        const row = tableBody.insertRow();
-        row.insertCell().textContent = user.id;
-        row.insertCell().textContent = user.role;
-        row.insertCell().textContent = user.tg_id || '—';
-        row.insertCell().textContent = user.pin || '—';
-        // row.insertCell().textContent = user.is_verified ? 'Да' : 'Нет'; // Убрал is_verified, так как это видно по TG ID и PIN
-        row.insertCell().textContent = user.sections ? user.sections.name : '—';
+    <main>
         
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteUser(user.id);
-        actionCell.appendChild(deleteBtn);
-    });
-}
+        <div id="pin-auth-panel" class="panel-section panel">
+            <h2>Авторизация по PIN-коду</h2>
+            <p>Введите ваш PIN-код, чтобы начать работу.</p>
+            <form id="pin-form">
+                <div class="form-group">
+                    <label for="pin-input">PIN-код (4 цифры):</label>
+                    <input type="password" id="pin-input" placeholder="****" required pattern="\d{4,4}">
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+            </form>
+            <div id="pin-message" class="alert" style="display:none; margin-top: 10px;"></div>
+        </div>
 
-async function loadSections() {
-    const { data, error } = await supabase
-        .from('sections')
-        .select(`*`)
-        .order('id', { ascending: true });
+        <div id="admin-panel" class="panel-section panel" style="display:none;">
+            <h2 id="admin-title-display">👑 Панель Администратора</h2>
+            <p>Ваш Telegram ID: <span id="admin-tg-id-display"></span></p>
 
-    if (error) {
-        console.error('Error loading sections:', error);
-        return;
-    }
-    
-    SECTIONS = data;
-    renderSectionsTable(data);
-    populateSectionSelect(data);
-}
+            <hr style="margin: 20px 0;">
 
-function renderSectionsTable(sections) {
-    const tableBody = document.getElementById('sections-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
+            <h3>⚙️ Управление системой</h3>
+            <div class="section-choice-buttons">
+                <button type="button" class="btn btn-primary" onclick="showPanel('add-user-section')">Пользователи</button>
+                <button type="button" class="btn btn-secondary" onclick="showPanel('add-section-panel')">Участки</button>
+                <button type="button" class="btn btn-secondary" onclick="showPanel('add-pf-panel')">Типы ПФ / Изделия</button>
+            </div>
+            
+            <hr style="margin: 20px 0;">
 
-    sections.forEach(section => {
-        const row = tableBody.insertRow();
-        row.insertCell().textContent = section.id;
-        row.insertCell().textContent = section.name;
-        
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteSection(section.id);
-        actionCell.appendChild(deleteBtn);
-    });
-}
+            <h3>📝 Мониторинг</h3>
+            <div class="section-choice-buttons">
+                <button type="button" class="btn btn-success" onclick="showPanel('create-request-section')">Создать Заявку (Тест)</button>
+                <button type="button" class="btn btn-info" onclick="showPanel('stats-panel')">Просмотреть Статистику</button>
+            </div>
+        </div>
 
-function populateSectionSelect(sections) {
-    const selectElements = document.querySelectorAll('.section-select');
-    selectElements.forEach(select => {
-        select.innerHTML = '<option value="">Не выбрано</option>';
-        sections.forEach(section => {
-            const option = document.createElement('option');
-            option.value = section.id;
-            option.textContent = section.name;
-            select.appendChild(option);
-        });
-    });
-}
+        <div id="add-user-section" class="panel-section panel" style="display:none;">
+            <h2>👤 Управление Пользователями</h2>
+            
+            <h3>➕ Добавить нового пользователя</h3>
+            <form id="add-user-form">
+                <div class="form-group">
+                    <label for="user-role">Роль:</label>
+                    <select id="user-role" required class="role-select">
+                        <option value="master">Мастер</option>
+                        <option value="otk">ОТК</option>
+                        <option value="admin">Администратор</option>
+                        <option value="super_admin">Супер Администратор</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="user-section">Участок:</label>
+                    <select id="user-section" class="section-select">
+                        </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Сгенерировать PIN и Добавить</button>
+            </form>
+            <div id="add-user-message" class="alert" style="display:none; margin-top: 10px;"></div>
 
-async function loadStats(filter = 'all') {
-    const statsContainer = document.getElementById('stats-results');
-    statsContainer.innerHTML = 'Загрузка статистики...';
-    
-    // ВАШЕ МЕСТО ДЛЯ РЕАЛИЗАЦИИ ЗАПРОСОВ К СТАТИСТИКЕ
-    
-    statsContainer.innerHTML = `
-        <p><strong>Фильтр: ${filter}</strong></p>
-        <p>Функция загрузки статистики работает, но требует реализации запросов к таблице 'requests'.</p>
-    `;
-}
+            <h3>📋 Список пользователей</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;"><th>ID</th><th>Роль</th><th>TG ID</th><th>PIN</th><th>Участок</th><th>Действие</th></tr>
+                </thead>
+                <tbody id="users-table-body">
+                    </tbody>
+            </table>
 
-// --- НОВАЯ ЛОГИКА ДОБАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯ С ПРОВЕРКОЙ ИЕРАРХИИ ---
-async function addUser(event) {
-    event.preventDefault();
-    const role = document.getElementById('user-role').value;
-    const sectionId = document.getElementById('user-section').value || null;
-    const messageElement = document.getElementById('add-user-message');
-    
-    // ПРОВЕРКА ИЕРАРХИИ: Только Super Admin может назначать Admin или Super Admin
-    if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
-         showMessage(messageElement, '🛑 Только Супер Администратор может назначать Администраторов и Супер Администраторов.', 'error');
-         return;
-    }
-    
-    // Запрет назначения участка для Администраторов
-    if ((role === 'admin' || role === 'super_admin') && sectionId) {
-         showMessage(messageElement, '🛑 Администратору и Супер Администратору нельзя назначать участок.', 'error');
-         return;
-    }
+            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
+        </div>
 
-    const pin = generatePin();
+        <div id="add-section-panel" class="panel-section panel" style="display:none;">
+            <h2>🏢 Управление Участками</h2>
+            
+            <h3>➕ Добавить новый участок</h3>
+            <form id="add-section-form">
+                <div class="form-group">
+                    <label for="section-name-input">Название участка:</label>
+                    <input type="text" id="section-name-input" placeholder="Например: Цех 1.1, Сборка" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Добавить Участок</button>
+            </form>
+            <div id="add-section-message" class="alert" style="display:none; margin-top: 10px;"></div>
 
-    const { error } = await supabase
-        .from('users')
-        .insert([{ 
-            role: role, 
-            section_id: sectionId,
-            pin: pin,
-            is_verified: false,
-            tg_id: null
-        }]);
+             <h3>📋 Список участков</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;"><th>ID</th><th>Название</th><th>Действие</th></tr>
+                </thead>
+                <tbody id="sections-table-body">
+                    </tbody>
+            </table>
 
-    if (error) {
-        console.error('Error adding user:', error);
-        showMessage(messageElement, `🛑 Ошибка добавления: ${error.message}`, 'error');
-    } else {
-        showMessage(messageElement, `✅ Пользователь (${role}) добавлен. PIN: ${pin}.`, 'success');
-        document.getElementById('add-user-form').reset();
-        loadUsers(); 
-    }
-}
+            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
+        </div>
 
-async function addSection(event) {
-    event.preventDefault();
-    const sectionName = document.getElementById('section-name-input').value.trim();
-    const messageElement = document.getElementById('add-section-message');
-    
-    if (!sectionName) {
-        showMessage(messageElement, 'Название участка не может быть пустым.', 'error');
-        return;
-    }
+        <div id="add-pf-panel" class="panel-section panel" style="display:none;">
+            <h2>➕ Добавить Тип ПФ / Изделия (Заглушка)</h2>
+            <p>Эта панель будет содержать форму для добавления новых типов полуфабрикатов или изделий.</p>
+            <button type="button" class="btn btn-secondary" onclick="showPanel('admin-panel')">← Назад</button>
+        </div>
 
-    const { error } = await supabase
-        .from('sections')
-        .insert([{ name: sectionName }]);
+        <div id="stats-panel" class="panel-section panel" style="display:none;">
+            <h2>📊 Статистика Заявок</h2>
+            
+            <div class="section-choice-buttons">
+                <button type="button" class="btn btn-primary" onclick="loadStats('all')">Все заявки</button>
+                <button type="button" class="btn btn-secondary" onclick="loadStats('in_progress')">В работе / На проверке</button>
+                <button type="button" class="btn btn-secondary" onclick="loadStats('accepted_today')">Принято сегодня</button>
+            </div>
+            
+            <div id="stats-results" style="margin-top: 20px;">
+                Загрузка...
+            </div>
 
-    if (error) {
-        console.error('Error adding section:', error);
-        showMessage(messageElement, `Ошибка добавления: ${error.message}`, 'error');
-    } else {
-        showMessage(messageElement, 'Участок добавлен.', 'success');
-        document.getElementById('add-section-form').reset();
-        loadSections(); 
-    }
-}
+            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
+        </div>
 
-async function deleteUser(userId) {
-    if (!confirm(`Вы уверены, что хотите удалить пользователя с ID ${userId}?`)) return;
+        <div id="create-request-section" class="panel-section panel" style="display:none;">
+            <h2>📝 Создание Заявки (Тест)</h2>
+            <p>Эта панель будет использоваться Мастерами для создания заявок.</p>
+            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="goHome()">← На главную</button>
+        </div>
 
-    const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+        <div id="main-panel" class="panel-section panel" style="display:none;">
+            <h2>🛠️ Ваши Заявки</h2>
+            <div id="requests-list">
+                </div>
+            <p style="margin-top: 20px;">*Здесь будет логика отображения заявок, доступная Мастеру/ОТК.</p>
+        </div>
 
-    if (error) {
-        console.error('Error deleting user:', error);
-        alert(`Ошибка удаления: ${error.message}`);
-    } else {
-        loadUsers(); 
-    }
-}
+    </main>
 
-async function deleteSection(sectionId) {
-    if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
+    <footer>
+        <p>&copy; 2025 TMA-ERP | Разработано для производства</p>
+    </footer>
 
-    const { error } = await supabase
-        .from('sections')
-        .delete()
-        .eq('id', sectionId);
-
-    if (error) {
-        console.error('Error deleting section:', error);
-        alert(`Ошибка удаления: ${error.message}`);
-    } else {
-        loadSections(); 
-        loadUsers(); 
-    }
-}
-
-// ==============================================================================
-// 6. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
-// ==============================================================================
-
-function initApp() {
-    // 1. Привязка обработчиков форм
-    const forms = [
-        { id: 'pin-form', handler: authenticate },
-        { id: 'add-user-form', handler: addUser },
-        { id: 'add-section-form', handler: addSection },
-        // { id: 'request-form', handler: createRequest } // Заглушка для других форм
-    ];
-
-    forms.forEach(f => {
-        const element = document.getElementById(f.id);
-        if (element) {
-            element.addEventListener('submit', f.handler); 
-        }
-    });
-
-    // 2. Инициализация Telegram WebApp
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-    }
-    
-    // 3. Запуск проверки роли
-    fetchRoleAndShowPanel(); 
-}
-
-document.addEventListener('DOMContentLoaded', initApp);
+    <script src="app.js"></script>
+</body>
+</html>

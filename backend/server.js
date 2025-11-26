@@ -1,18 +1,17 @@
-﻿// server.js - ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЕМ node-fetch
+﻿// server.js - ФИНАЛЬНАЯ ВЕРСИЯ: PIN, СЕКЦИИ, BATCH, B24 И ПАНЕЛЬ АДМИНА
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
-const nodeFetch = require('node-fetch'); // <<< ИСПРАВЛЕНИЕ: Импорт node-fetch для совместимости
+const nodeFetch = require('node-fetch'); 
 
 // --- 1. НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ ---
 const PORT = process.env.PORT || 3000; 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
-// !!! ВАЖНО: Установите этот URL в переменных окружения Render
 const BITRIX24_WEBHOOK_URL = process.env.BITRIX24_WEBHOOK_URL || 'https://your-bitrix.b24.ru/rest/1/webhook_key/tasks.task.add'; 
 
 if (!supabaseUrl || !supabaseKey) {
@@ -58,7 +57,6 @@ function getPriorityDetails(key) {
  */
 async function sendToBitrix24(requestData) {
     const details = getPriorityDetails(requestData.desired_priority);
-    // Дедлайн в секундах, а не миллисекундах.
     const deadlineTime = new Date(Date.now() + details.deadline_hours * 3600 * 1000).toISOString();
 
     const bitrixPayload = {
@@ -76,7 +74,7 @@ async function sendToBitrix24(requestData) {
             return `B24_MOCK_ID_${Date.now()}`; 
         }
 
-        const response = await nodeFetch(BITRIX24_WEBHOOK_URL, { // <<< ИСПОЛЬЗУЕМ nodeFetch
+        const response = await nodeFetch(BITRIX24_WEBHOOK_URL, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bitrixPayload)
@@ -178,6 +176,66 @@ app.post('/api/auth/verify-pin', async (req, res) => {
     } catch (error) {
         console.error('Error in PIN verification:', error.message);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * POST /api/admin/add-user - Добавление нового пользователя (Администратор)
+ * Создает нового пользователя или обновляет существующего, устанавливая PIN.
+ */
+app.post('/api/admin/add-user', async (req, res) => {
+    const { telegram_id, role, section_id, pin } = req.body;
+
+    if (!telegram_id || !role || !section_id || !pin) {
+        return res.status(400).json({ error: 'Missing required fields (Telegram ID, Role, Section ID, or PIN)' });
+    }
+
+    try {
+        // Проверяем, существует ли пользователь по TG ID
+        const { data: existingUser, error: fetchError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('telegram_id', telegram_id)
+            .single();
+        
+        // Данные для вставки или обновления
+        const userPayload = {
+            telegram_id: telegram_id,
+            role: role,
+            section_id: section_id,
+            pin: pin,
+            is_verified: false // Новый пользователь всегда не верифицирован
+        };
+        
+        let result;
+
+        if (existingUser) {
+            // Обновление существующего пользователя (сброс PIN и верификации)
+            result = await supabase
+                .from('users')
+                .update(userPayload)
+                .eq('id', existingUser.id)
+                .select();
+        } else {
+            // Вставка нового пользователя
+            result = await supabase
+                .from('users')
+                .insert([userPayload])
+                .select();
+        }
+
+        if (result.error) throw result.error;
+
+        res.status(201).json({ 
+            message: `User ${telegram_id} added/updated successfully with PIN: ${pin}.`,
+            id: result.data[0].id
+        });
+
+    } catch (error) {
+        console.error('Error adding user:', error.message);
+        // Если ошибка связана с уникальностью (например, PIN уже занят), сообщаем об этом
+        let detail = error.message.includes('unique constraint') ? 'PIN already in use or user already exists.' : error.message;
+        res.status(500).json({ error: 'Internal Server Error', detail: detail });
     }
 });
 

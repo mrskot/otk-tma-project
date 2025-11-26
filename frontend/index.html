@@ -18,6 +18,7 @@
         .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
         .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
         .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .section-choice-buttons button { margin-bottom: 10px; width: 100%; }
         textarea { resize: vertical; }
     </style>
@@ -44,8 +45,40 @@
         <p>Роль: <span id="role-display">Загрузка...</span></p>
 
         <button class="btn btn-primary" onclick="showPanel('create-request-section')">+ Новая заявка</button>
-        <button class="btn btn-secondary">Мои Заявки (Список)</button>
         </div>
+    
+    <div id="admin-panel" class="panel-section" style="display:none;">
+        <h2>👑 Панель Администратора</h2>
+
+        <h3>Добавить/Обновить Пользователя</h3>
+        <form id="add-user-form">
+            <div class="form-group">
+                <label for="admin-tg-id">Telegram ID:</label>
+                <input type="text" id="admin-tg-id" placeholder="ID пользователя (например: 123456789)" required pattern="\d+">
+            </div>
+            <div class="form-group">
+                <label for="admin-role">Роль:</label>
+                <select id="admin-role" required>
+                    <option value="master">Мастер</option>
+                    <option value="otk">ОТК</option>
+                    <option value="admin">Администратор</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="admin-section-select">Участок:</label>
+                <select id="admin-section-select" required>
+                    </select>
+            </div>
+            <div class="form-group">
+                <label for="admin-pin">PIN-код (4-8 цифр):</label>
+                <input type="text" id="admin-pin" placeholder="Уникальный PIN" required pattern="\d{4,8}">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить/Сбросить PIN</button>
+        </form>
+        <div id="admin-message" class="alert" style="display:none; margin-top: 10px;"></div>
+
+        <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('main-panel')">← Назад к Главной</button>
+    </div>
 
     <div id="create-request-section" class="panel-section" style="display:none;">
         <h2>Создание Заявки (Мастер)</h2>

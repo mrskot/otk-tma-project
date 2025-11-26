@@ -1,4 +1,4 @@
-// app.js - ФИНАЛЬНАЯ ВЕРСИЯ С PIN АВТОРИЗАЦИЕЙ И ПАКЕТНОЙ ФОРМОЙ
+// app.js - ФИНАЛЬНАЯ ВЕРСИЯ: PIN, ФОРМА, АДМИН-ПАНЕЛЬ
 
 // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
 let userRole = 'guest';
@@ -8,24 +8,22 @@ let USER_SECTION_NAME = null;
 
 // --- ИНИЦИАЛИЗАЦИЯ ---
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Получаем Telegram ID, используя заглушку для тестирования вне TMA
+    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
+    const tgId = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID'; 
+
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
-        
-        // Проверяем наличие user.id, если нет - это заглушка, используем тестовый ID
-        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-        const tgId = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID'; 
-
-        document.getElementById('tg-id-display').textContent = tgId;
-        fetchRoleAndShowPanel(tgId);
-    } else {
-        document.getElementById('tg-id-display').textContent = 'Web View (Not Telegram)';
-        // Если не в TMA, используем тестовый ID для входа и проверки логики
-        fetchRoleAndShowPanel('TEST_MASTER_ID'); 
     }
+    document.getElementById('tg-id-display').textContent = tgId;
+
+    fetchRoleAndShowPanel(tgId);
 
     // Обработчики форм
     document.getElementById('pin-form').addEventListener('submit', handlePinSubmit);
     document.getElementById('request-form').addEventListener('submit', handleRequestFormSubmit);
+    document.getElementById('add-user-form').addEventListener('submit', handleAddUserSubmit); // <<< ОБРАБОТЧИК АДМИН-ПАНЕЛИ
 });
 
 // --- ПАНЕЛИ И НАВИГАЦИЯ ---
@@ -55,19 +53,24 @@ async function fetchRoleAndShowPanel(telegramId) {
             return;
         }
 
-        // 2. Если верифицирован, сохраняем данные участка
+        // 2. Если пользователь - Администратор, показываем панель администратора
+        if (userRole === 'admin') {
+            showPanel('admin-panel'); 
+            return;
+        }
+
+        // 3. Если верифицирован и не админ, сохраняем данные участка
         USER_SECTION_ID = data.section_id || null;
         USER_SECTION_NAME = data.section_name || null;
 
         showPanel('main-panel');
-        // 3. Отображение логики выбора участка для мастера
+        // 4. Отображение логики выбора участка для мастера
         if (userRole === 'master') {
             renderSectionChoiceArea();
         }
         
     } catch (error) {
         console.error('Error fetching role or user not found:', error);
-        // В случае любой ошибки, предполагаем, что нужна верификация
         showPanel('pin-auth-panel');
     }
 }
@@ -76,8 +79,7 @@ async function handlePinSubmit(e) {
     e.preventDefault();
     const pin = document.getElementById('pin-input').value;
     
-    // Получаем Telegram ID из TWA или используем тестовый ID
-    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
     const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
     
     const messageDiv = document.getElementById('pin-message');
@@ -95,7 +97,6 @@ async function handlePinSubmit(e) {
 
         if (response.ok) {
             alert('✅ Успешная авторизация! Добро пожаловать.');
-            // PIN принят, перезагружаем данные, чтобы получить роль и данные участка
             await fetchRoleAndShowPanel(telegram_id);
         } else {
             messageDiv.textContent = `🛑 Ошибка: ${result.error || 'Неверный PIN или внутренняя ошибка.'}`;
@@ -108,7 +109,7 @@ async function handlePinSubmit(e) {
 }
 
 
-// --- 2. ЛОГИКА УПРАВЛЕНИЯ УЧАСТКАМИ И ФОРМОЙ ---
+// --- 2. ЛОГИКА АДМИНИСТРИРОВАНИЯ И УЧАСТКОВ ---
 
 async function loadSections() {
     try {
@@ -117,18 +118,70 @@ async function loadSections() {
         
         SECTIONS_DATA = await response.json();
         
-        const select = document.getElementById('section-select');
-        select.innerHTML = '<option value="">-- Выберите другой участок --</option>'; 
+        const reqSelect = document.getElementById('section-select');
+        const adminSelect = document.getElementById('admin-section-select');
+        
+        // Очистка и добавление опций в оба селекта
+        reqSelect.innerHTML = '<option value="">-- Выберите другой участок --</option>'; 
+        adminSelect.innerHTML = '<option value="">-- Выберите участок --</option>';
         
         SECTIONS_DATA.forEach(section => {
-            const option = document.createElement('option');
-            option.value = section.id;
-            option.textContent = section.name;
-            select.appendChild(option);
+            const optionReq = document.createElement('option');
+            optionReq.value = section.id;
+            optionReq.textContent = section.name;
+            reqSelect.appendChild(optionReq);
+
+            const optionAdmin = optionReq.cloneNode(true); 
+            adminSelect.appendChild(optionAdmin);
         });
 
     } catch (error) {
         console.error('Error loading sections:', error);
+    }
+}
+
+async function handleAddUserSubmit(e) {
+    e.preventDefault();
+    const messageDiv = document.getElementById('admin-message');
+    
+    const payload = {
+        telegram_id: document.getElementById('admin-tg-id').value,
+        role: document.getElementById('admin-role').value,
+        section_id: document.getElementById('admin-section-select').value,
+        pin: document.getElementById('admin-pin').value,
+    };
+
+    if (!payload.section_id) {
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.textContent = '🛑 Пожалуйста, выберите участок.';
+        messageDiv.style.display = 'block';
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/add-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        messageDiv.style.display = 'block';
+
+        if (response.ok) {
+            messageDiv.className = 'alert alert-success';
+            messageDiv.textContent = `✅ Пользователь ${payload.telegram_id} (${payload.role}) добавлен/обновлен. PIN: ${payload.pin}.`;
+            document.getElementById('add-user-form').reset();
+        } else {
+            messageDiv.className = 'alert alert-danger';
+            messageDiv.textContent = `🛑 Ошибка: ${result.detail || result.error || 'Внутренняя ошибка.'}`;
+        }
+
+    } catch (error) {
+        console.error('Admin user creation network error:', error);
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.textContent = '🛑 Ошибка сети. Попробуйте позже.';
+        messageDiv.style.display = 'block';
     }
 }
 
@@ -138,7 +191,6 @@ function renderSectionChoiceArea() {
     let html = '';
 
     if (USER_SECTION_ID && USER_SECTION_NAME) {
-        // Сценарий "ДА": Участок закреплен - максимальное автозаполнение
         html = `
             <div class="alert alert-info">
                 Ваш закрепленный участок: <strong>${USER_SECTION_NAME}</strong>.
@@ -152,25 +204,22 @@ function renderSectionChoiceArea() {
                 </button>
             </div>
         `;
-        select.style.display = 'none'; // Скрываем select по умолчанию
-        selectSection(USER_SECTION_ID, USER_SECTION_NAME, false); // Устанавливаем в скрытое поле
+        select.style.display = 'none'; 
+        selectSection(USER_SECTION_ID, USER_SECTION_NAME, false); 
     } else {
-        // Сценарий "НЕТ": Участок не закреплен - сразу показываем список
         html = `<label>Участок Приемки (Отправитель):</label>`;
         select.style.display = 'block';
-        selectSection(null, null, false); // Сбрасываем выбор
+        selectSection(null, null, false); 
     }
     area.innerHTML = html;
 }
 
-// Показать выпадающий список для выбора другого участка
 function showOtherSections() {
     document.getElementById('section-choice-area').innerHTML = `<label>Выберите участок:</label>`;
     document.getElementById('section-select').style.display = 'block';
-    document.getElementById('section-select').value = ''; // Сбрасываем выбор
+    document.getElementById('section-select').value = ''; 
 }
 
-// Установить выбранный участок (вызывается при клике на "Мой участок" или при выборе из списка)
 function selectSection(id, name, showConfirmation = false) {
     const select = document.getElementById('section-select');
     
@@ -202,23 +251,19 @@ async function handleRequestFormSubmit(e) {
         return;
     }
     
-    // Деактивируем кнопку во время отправки
     formButton.disabled = true;
     formButton.textContent = 'Отправка...';
 
-    // Получаем Telegram ID из TWA или используем тестовый ID
-    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
     const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
 
     const payload = {
         telegram_id: telegram_id,
         section_id: selectedSectionId,
         
-        // Данные пачки и приоритета
         product_numbers_input: document.getElementById('product_numbers_input').value,
         desired_priority: document.getElementById('desired_priority').value,
         
-        // Общие атрибуты
         transformer_type: document.getElementById('transformer_type').value,
         drawing_number: document.getElementById('drawing_number').value,
         semi_product: document.getElementById('semi_product').value,
@@ -236,7 +281,6 @@ async function handleRequestFormSubmit(e) {
 
         if (response.ok) {
             alert(`✅ Успех! Создано заявок: ${result.message.match(/(\d+) requests/)[1] || '1'}. Задача(и) отправлена(ы) в Bitrix24.`);
-            // Сброс формы и возврат на главную
             document.getElementById('request-form').reset();
             showPanel('main-panel'); 
         } else {

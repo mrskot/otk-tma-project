@@ -4,124 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OTK Factory Mini App</title>
-    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+    <header>
+        <h1>Главная Панель</h1>
+        <h2 id="user-id">ID TG: Загрузка...</h2> 
+        <h2 id="current-section">Роль: Проверка...</h2>
+    </header>
+
     <div id="main-dashboard" class="screen active">
-        <header>
-            <h1>Главная Панель</h1>
-            <div class="user-info-card">
-                <div class="current-section-tag">
-                    <span id="current-section">Участок Загрузка...</span>
-                </div>
-                <small id="user-id">ID TG: Загрузка...</small>
-            </div>
-        </header>
-
-        <section class="quick-stats">
-            <div class="stat-card" data-screen-target="my-requests">
-                <div class="icon-text">
-                    <span class="icon">📦</span>
-                    <span>Мои заявки</span>
-                </div>
-                <span class="count">4</span>
-            </div>
-            
-            <div class="stat-card" data-screen-target="all-requests">
-                <div class="icon-text">
-                    <span class="icon">📋</span>
-                    <span>Все заявки</span>
-                </div>
-                <span class="count">45</span>
-            </div>
-            
-            <div class="stat-card alert" data-screen-target="deviations">
-                <div class="icon-text">
-                    <span class="icon">⚠️</span>
-                    <span>Несоответствия</span>
-                </div>
-                <span class="count">2</span>
-            </div>
-
-            <div class="stat-card" data-screen-target="statistics">
-                <div class="icon-text">
-                    <span class="icon">📈</span>
-                    <span>Статистика участка</span>
-                </div>
-                <span class="count"></span>
-            </div>
-        </section>
+        <h3>Мои заявки</h3>
+        <p>4</p>
         
-        <div class="main-button-imitation-container">
-            <button class="new-request-button" data-screen-target="create-request">
-                <span class="icon">+</span> Новая заявка
-            </button>
-        </div>
+        <h3>Все заявки</h3>
+        <p>45</p>
+
+        <h3 style="color: red;">⚠️ Несоответствия</h3>
+        <p>2</p>
+
+        <button>Статистика участка</button>
+        <button data-screen-target="create-request">+ Новая заявка</button>
+        
+        <br><br>
+        
+        <button data-screen-target="my-requests">Мои заявки (Список)</button>
     </div>
 
     <div id="create-request" class="screen">
-        <header class="header-with-back">
-            <button class="back-button" data-screen-target="main-dashboard">← Назад</button>
-            <h2>Создание Заявки (Мастер)</h2>
-        </header>
-
+        <h2>Создание Заявки (Мастер)</h2>
         <form id="request-form">
+            
             <label for="section-select">Участок Приемки (Отправитель)</label>
             <select id="section-select" name="section-select" required>
-                <option value="">-- Загрузка участков --</option>
-            </select>
-
-            <label for="semi-product">Тип Полуфабриката (доп. поле)</label>
-            <input type="text" id="semi-product" name="semi-product" placeholder="Катушка / Бак / Активная часть">
+                </select>
 
             <label for="transformer-type">Тип Трансформатора</label>
             <input type="text" id="transformer-type" name="transformer-type" placeholder="Например: ТМГ 1000/10/0,4" required>
 
+            <label for="product-number">Номер Изделия (Зав. номер)</label>
+            <input type="text" id="product-number" name="product-number" placeholder="Номер изделия" required>
+            
             <label for="drawing-number">Номер Чертежа</label>
             <input type="text" id="drawing-number" name="drawing-number" placeholder="Введите номер чертежа">
 
-            <label for="product-number">Номер Изделия (Зав. номер)</label>
-            <input type="text" id="product-number" name="product-number" placeholder="Номер, подлежащий приемке" required>
-
-            <label for="initial-description">Описание Причины Вызова ОТК</label>
-            <textarea id="initial-description" name="initial-description" placeholder="Детальное описание работы, которую нужно принять"></textarea>
+            <label for="semi-product">Тип Полуфабриката (доп. поле)</label>
+            <input type="text" id="semi-product" name="semi-product" placeholder="Катушка / Бак / Активная часть">
             
-            <label for="photo-attach">Прикрепить Фотографии</label>
-            <input type="file" id="photo-attach" name="photo-attach" accept="image/*" multiple>
+            <label for="initial-description">Причины Вызова ОТК</label>
+            <textarea id="initial-description" name="initial-description" rows="3" placeholder="Детальное описание работы, которую нужно выполнить"></textarea>
 
-            <button type="submit" class="submit-button">Создать Заявку и Отправить в Б24</button>
+            <label>Прикрепить Фотографии</label>
+            <input type="file" id="upload-files" name="upload-files" multiple>
+            <button type="submit">Создать Заявку и Отправить в Б24</button>
         </form>
+        <button data-screen-target="main-dashboard">← Назад</button>
     </div>
 
     <div id="my-requests" class="screen">
-        <header class="header-with-back">
-            <button class="back-button" data-screen-target="main-dashboard">← Назад</button>
-            <h2>Мои Заявки</h2>
-        </header>
-        <p>Список заявок, созданных вами. (Кликните для <span class="link" onclick="openRequestCard('test_id')">Просмотра Карточки</span>)</p>
+        <h2>Мои Заявки</h2>
+        <p>Список заявок, созданных вами. (Кликните для Просмотра Карточки)</p>
+        <button data-screen-target="main-dashboard">← К Списку</button>
     </div>
 
-    <div id="request-card-view" class="screen">
-        <header class="header-with-back">
-            <button class="back-button" data-screen-target="my-requests">← К Списку</button>
-            <h2>Карточка Заявки №[ID]</h2>
-        </header>
+    <div id="request-card" class="screen">
+        <h2>Карточка Заявки №[ID]</h2>
         <p>Детальная информация по заявке, ее статус и история действий.</p>
+        <button data-screen-target="my-requests">← Назад</button>
     </div>
     
-    <div id="deviations" class="screen">
-        <header class="header-with-back">
-            <button class="back-button" data-screen-target="main-dashboard">← Назад</button>
-            <h2>Несоответствия</h2>
-        </header>
+    <div id="all-requests" class="screen">
+        <h2>Несоответствия</h2>
         <p>Список отклонений, требующих внимания. (Разработка на следующих этапах)</p>
+        <button data-screen-target="main-dashboard">← Назад</button>
     </div>
-    
-    
+
     <script src="app.js"></script>
 </body>
 </html>

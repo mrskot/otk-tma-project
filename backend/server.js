@@ -70,7 +70,6 @@ app.post('/api/request/create', async (req, res) => {
     // ВРЕМЕННЫЕ МОК-ЗНАЧЕНИЯ ДЛЯ ОБЯЗАТЕЛЬНЫХ UUID-ПОЛЕЙ
     // ЭТО НУЖНО, ПОТОМУ ЧТО ОНИ NOT NULL В ВАШЕЙ БД
     const MOCK_SECTION_UUID = 'eafc1199-14b7-4127-bfe6-4afc188d6856'; 
-    const MOCK_OTK_ASSIGNEE_UUID = '11111111-3333-4444-5555-666666666666'; 
 
     const { 
         telegram_id, 

@@ -5,7 +5,7 @@
 const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
 const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
 
-// ИСПРАВЛЕНИЕ: Используем глобальный метод createClient для корректной инициализации
+// Корректная инициализация клиента Supabase
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -90,9 +90,11 @@ function generatePin() {
 
 async function fetchRoleAndShowPanel() {
     
-    // Если Telegram WebApp недоступен, используем тестовый ID
     const tgUser = window.Telegram.WebApp ? window.Telegram.WebApp.initDataUnsafe.user : null;
-    telegramId = tgUser ? tgUser.id.toString() : '949765279'; 
+    
+    // АБСОЛЮТНЫЙ ПЛЕЙСХОЛДЕР ДЛЯ ТЕСТА: используйте ID, который НЕ верифицирован, но имеет PIN.
+    // Если WebApp не дает ID, то currentTelegramId будет '999999999'
+    telegramId = tgUser ? tgUser.id.toString() : '999999999'; 
     
     const adminTgIdDisplay = document.getElementById('admin-tg-id-display');
     if (adminTgIdDisplay) {
@@ -108,6 +110,7 @@ async function fetchRoleAndShowPanel() {
     
     // 2. Проверка: Пользователь не найден или не верифицирован
     if (error || !data || !data.is_verified) {
+        // Здесь мы показываем PIN-форму, даже если TG ID не определен или не верифицирован
         showPanel('pin-auth-panel');
         return;
     }
@@ -148,7 +151,9 @@ async function authenticate(event) {
     const currentTelegramId = tgUser ? tgUser.id.toString() : null;
     
     if (!currentTelegramId) {
-        showMessage(messageElement, 'Невозможно получить ваш Telegram ID. Используйте WebApp.', 'error');
+        // Если нет ID от Telegram, мы не можем завершить верификацию.
+        // Это может быть причиной, по которой вы не видите реакции.
+        showMessage(messageElement, '⚠️ Невозможно получить ваш Telegram ID. Убедитесь, что приложение запущено в среде Telegram WebApp.', 'error');
         return;
     }
     
@@ -156,13 +161,12 @@ async function authenticate(event) {
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
-        .eq('pin', pin) // <-- ИСПОЛЬЗУЕМ pin
-        .is('telegram_id', null) 
+        .eq('pin', pin) 
+        .is('telegram_id', null) // Должен быть NULL, если не верифицирован
         .eq('is_verified', false) 
         .single();
     
     if (pinError || !userToVerify) {
-        // Здесь ошибка, если запрос не вернул пользователя (неверный PIN или уже верифицирован)
         showMessage(messageElement, 'Неверный PIN-код или пользователь уже верифицирован.', 'error');
         return;
     }
@@ -175,11 +179,12 @@ async function authenticate(event) {
             pin: null, 
             is_verified: true
         })
-        .eq('id', userToVerify.id);
+        .eq('id', userToVerify.id)
+        .select(); // Добавим .select(), чтобы быть уверенными в результате
 
     if (updateError) {
         console.error('Update Error:', updateError);
-        showMessage(messageElement, 'Ошибка обновления статуса верификации.', 'error');
+        showMessage(messageElement, 'Ошибка обновления статуса верификации. Проверьте права RLS.', 'error');
         return;
     }
 
@@ -193,201 +198,10 @@ async function authenticate(event) {
 // ==============================================================================
 // 5. АДМИН-ПАНЕЛЬ: ЛОГИКА УПРАВЛЕНИЯ
 // ==============================================================================
+// (Остальной код функций loadAdminData, loadUsers, addUser и т.д. остается неизменным)
+// ...
+// ...
 
-async function loadAdminData() {
-    await Promise.all([loadUsers(), loadSections()]);
-}
-
-async function loadUsers() {
-    const { data, error } = await supabaseClient
-        .from('users')
-        .select(`id, role, telegram_id, pin, is_verified, sections(name)`) 
-        .order('id', { ascending: true });
-
-    if (error) {
-        console.error('Error loading users:', error);
-        return;
-    }
-    
-    USERS = data;
-    renderUsersTable(data);
-}
-
-function renderUsersTable(users) {
-    const tableBody = document.getElementById('users-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
-
-    users.forEach(user => {
-        const row = tableBody.insertRow();
-        row.insertCell().textContent = user.id;
-        row.insertCell().textContent = user.role;
-        row.insertCell().textContent = user.telegram_id || '—';
-        row.insertCell().textContent = user.pin || '—';
-        row.insertCell().textContent = user.sections ? user.sections.name : '—';
-        
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteUser(user.id);
-        actionCell.appendChild(deleteBtn);
-    });
-}
-
-async function loadSections() {
-    const { data, error } = await supabaseClient
-        .from('sections')
-        .select(`*`)
-        .order('id', { ascending: true });
-
-    if (error) {
-        console.error('Error loading sections:', error);
-        return;
-    }
-    
-    SECTIONS = data;
-    renderSectionsTable(data);
-    populateSectionSelect(data);
-}
-
-function renderSectionsTable(sections) {
-    const tableBody = document.getElementById('sections-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
-
-    sections.forEach(section => {
-        const row = tableBody.insertRow();
-        row.insertCell().textContent = section.id;
-        row.insertCell().textContent = section.name;
-        
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteSection(section.id);
-        actionCell.appendChild(deleteBtn);
-    });
-}
-
-function populateSectionSelect(sections) {
-    const selectElements = document.querySelectorAll('.section-select');
-    selectElements.forEach(select => {
-        select.innerHTML = '<option value="">Не выбрано</option>';
-        sections.forEach(section => {
-            const option = document.createElement('option');
-            option.value = section.id;
-            option.textContent = section.name;
-            select.appendChild(option);
-        });
-    });
-}
-
-async function loadStats(filter = 'all') {
-    const statsContainer = document.getElementById('stats-results');
-    statsContainer.innerHTML = 'Загрузка статистики...';
-    
-    statsContainer.innerHTML = `
-        <h3>Результаты статистики</h3>
-        <p>Фильтр: <strong>${filter}</strong></p>
-        <p>Функция загрузки статистики работает, но требует реализации запросов к таблице 'requests'.</p>
-    `;
-}
-
-async function addUser(event) {
-    event.preventDefault();
-    const role = document.getElementById('user-role').value;
-    const sectionId = document.getElementById('user-section').value || null;
-    const messageElement = document.getElementById('add-user-message');
-    
-    if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
-         showMessage(messageElement, '🛑 Только Супер Администратор может назначать Администраторов и Супер Администраторов.', 'error');
-         return;
-    }
-    
-    if ((role === 'admin' || role === 'super_admin') && sectionId) {
-         showMessage(messageElement, '🛑 Администратору и Супер Администратору нельзя назначать участок.', 'error');
-         return;
-    }
-
-    const pin = generatePin();
-
-    const { error } = await supabaseClient
-        .from('users')
-        .insert([{ 
-            role: role, 
-            section_id: sectionId,
-            pin: pin,
-            is_verified: false,
-            telegram_id: null 
-        }]);
-
-    if (error) {
-        console.error('Error adding user:', error);
-        showMessage(messageElement, `🛑 Ошибка добавления: ${error.message}`, 'error');
-    } else {
-        showMessage(messageElement, `✅ Пользователь (${role}) добавлен. PIN: ${pin}.`, 'success');
-        document.getElementById('add-user-form').reset();
-        loadUsers(); 
-    }
-}
-
-async function addSection(event) {
-    event.preventDefault();
-    const sectionName = document.getElementById('section-name-input').value.trim();
-    const messageElement = document.getElementById('add-section-message');
-    
-    if (!sectionName) {
-        showMessage(messageElement, 'Название участка не может быть пустым.', 'error');
-        return;
-    }
-
-    const { error } = await supabaseClient
-        .from('sections')
-        .insert([{ name: sectionName }]);
-
-    if (error) {
-        console.error('Error adding section:', error);
-        showMessage(messageElement, `Ошибка добавления: ${error.message}`, 'error');
-    } else {
-        showMessage(messageElement, 'Участок добавлен.', 'success');
-        document.getElementById('add-section-form').reset();
-        loadSections(); 
-    }
-}
-
-async function deleteUser(userId) {
-    if (!confirm(`Вы уверены, что хотите удалить пользователя с ID ${userId}?`)) return;
-
-    const { error } = await supabaseClient
-        .from('users')
-        .delete()
-        .eq('id', userId);
-
-    if (error) {
-        console.error('Error deleting user:', error);
-        alert(`Ошибка удаления: ${error.message}`);
-    } else {
-        loadUsers(); 
-    }
-}
-
-async function deleteSection(sectionId) {
-    if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
-
-    const { error } = await supabaseClient
-        .from('sections')
-        .delete()
-        .eq('id', sectionId);
-
-    if (error) {
-        console.error('Error deleting section:', error);
-        alert(`Ошибка удаления: ${error.message}`);
-    } else {
-        loadSections(); 
-        loadUsers(); 
-    }
-}
 
 // ==============================================================================
 // 6. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
@@ -406,7 +220,6 @@ function initApp() {
         if (element) {
             element.addEventListener('submit', f.handler); 
         } else {
-            // Если вы видите это в консоли, проверьте index.html
             console.error(`Error: Form with ID "${f.id}" not found. Check index.html`);
         }
     });

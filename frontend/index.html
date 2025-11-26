@@ -3,82 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OTK Factory Mini App</title>
+    <title>OTK TMA</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+        .panel-section { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .section-choice-buttons button { margin-bottom: 10px; width: 100%; }
+        textarea { resize: vertical; }
+    </style>
 </head>
 <body>
 
-    <header>
-        <h1>Главная Панель</h1>
-        <h2 id="user-id">ID TG: Загрузка...</h2> 
-        <h2 id="current-section">Роль: Проверка...</h2>
-    </header>
-
-    <div id="main-dashboard" class="screen active">
-        <h3>Мои заявки</h3>
-        <p>4</p>
+    <div id="pin-auth-panel" class="panel-section" style="display:none;">
+        <h2>🔐 Вход по PIN-коду</h2>
+        <p>Ваша учетная запись не верифицирована. Введите PIN-код, выданный администратором, чтобы начать работу.</p>
         
-        <h3>Все заявки</h3>
-        <p>45</p>
-
-        <h3 style="color: red;">⚠️ Несоответствия</h3>
-        <p>2</p>
-
-        <button>Статистика участка</button>
-        <button data-screen-target="create-request">+ Новая заявка</button>
-        
-        <br><br>
-        
-        <button data-screen-target="my-requests">Мои заявки (Список)</button>
+        <form id="pin-form">
+            <div class="form-group">
+                <label for="pin-input">PIN-код:</label>
+                <input type="text" id="pin-input" placeholder="Введите PIN" required pattern="\d{4,8}">
+            </div>
+            <button type="submit" class="btn btn-primary">Подтвердить и Войти</button>
+        </form>
+        <div id="pin-message" style="color:red; margin-top: 10px;"></div>
     </div>
 
-    <div id="create-request" class="screen">
+    <div id="main-panel" class="panel-section" style="display:none;">
+        <h2>Главная Панель</h2>
+        <p>ID TG: <span id="tg-id-display">Загрузка...</span></p>
+        <p>Роль: <span id="role-display">Загрузка...</span></p>
+
+        <button class="btn btn-primary" onclick="showPanel('create-request-section')">+ Новая заявка</button>
+        <button class="btn btn-secondary">Мои Заявки (Список)</button>
+        </div>
+
+    <div id="create-request-section" class="panel-section" style="display:none;">
         <h2>Создание Заявки (Мастер)</h2>
+
+        <div id="section-choice-area">
+            </div>
+
         <form id="request-form">
             
-            <label for="section-select">Участок Приемки (Отправитель)</label>
-            <select id="section-select" name="section-select" required>
+            <select id="section-select" style="display:none;">
                 </select>
 
-            <label for="transformer-type">Тип Трансформатора</label>
-            <input type="text" id="transformer-type" name="transformer-type" placeholder="Например: ТМГ 1000/10/0,4" required>
+            <div class="form-group">
+                <label>Желаемый Приоритет Приёмки:</label>
+                <select id="desired_priority">
+                    <option value="working_order">В рабочем порядке (Дефолт)</option>
+                    <option value="as_soon_as_possible">Как можно скорее</option>
+                    <option value="today">Сегодня</option>
+                    <option value="tomorrow">Завтра</option>
+                    <option value="this_week">На этой неделе</option>
+                    <option value="before_lunch">До обеда</option>
+                    <option value="after_lunch">После обеда</option>
+                    <option value="urgent">!!! ЭКСТРЕННО !!!</option>
+                </select>
+            </div>
 
-            <label for="product-number">Номер Изделия (Зав. номер)</label>
-            <input type="text" id="product-number" name="product-number" placeholder="Номер изделия" required>
+            <div class="form-group">
+                <label>Тип Трансформатора:</label>
+                <input type="text" id="transformer_type" placeholder="Например: ТМГ 1000/10/0,4">
+            </div>
+
+            <div class="form-group">
+                <label>Номера Изделий (Зав. номера, через запятую или с новой строки):</label>
+                <textarea id="product_numbers_input" rows="4" placeholder="Введите номера изделий (например: 12345, 12346, 12347)"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Номер Чертежа:</label>
+                <input type="text" id="drawing_number" placeholder="Введите номер чертежа">
+            </div>
+
+            <div class="form-group">
+                <label>Тип Полуфабриката (доп. поле):</label>
+                <select id="semi_product">
+                    <option value="">-- Выберите ПФ --</option>
+                    <option value="Катушка">Катушка</option>
+                    <option value="Бак">Бак</option>
+                    <option value="Активная часть">Активная часть</option>
+                    </select>
+            </div>
+
+            <div class="form-group">
+                <label>Причины Вызова ОТК / Детальное описание:</label>
+                <textarea id="initial_description" rows="3" placeholder="Детальное описание работы, которую нужно выполнить"></textarea>
+            </div>
             
-            <label for="drawing-number">Номер Чертежа</label>
-            <input type="text" id="drawing-number" name="drawing-number" placeholder="Введите номер чертежа">
-
-            <label for="semi-product">Тип Полуфабриката (доп. поле)</label>
-            <input type="text" id="semi-product" name="semi-product" placeholder="Катушка / Бак / Активная часть">
-            
-            <label for="initial-description">Причины Вызова ОТК</label>
-            <textarea id="initial-description" name="initial-description" rows="3" placeholder="Детальное описание работы, которую нужно выполнить"></textarea>
-
-            <label>Прикрепить Фотографии</label>
-            <input type="file" id="upload-files" name="upload-files" multiple>
-            <button type="submit">Создать Заявку и Отправить в Б24</button>
+            <button type="submit" class="btn btn-success">Создать Заявку(и) и Отправить в Б24</button>
+            <button type="button" class="btn btn-secondary" onclick="showPanel('main-panel')">← Назад</button>
         </form>
-        <button data-screen-target="main-dashboard">← Назад</button>
-    </div>
-
-    <div id="my-requests" class="screen">
-        <h2>Мои Заявки</h2>
-        <p>Список заявок, созданных вами. (Кликните для Просмотра Карточки)</p>
-        <button data-screen-target="main-dashboard">← К Списку</button>
-    </div>
-
-    <div id="request-card" class="screen">
-        <h2>Карточка Заявки №[ID]</h2>
-        <p>Детальная информация по заявке, ее статус и история действий.</p>
-        <button data-screen-target="my-requests">← Назад</button>
-    </div>
-    
-    <div id="all-requests" class="screen">
-        <h2>Несоответствия</h2>
-        <p>Список отклонений, требующих внимания. (Разработка на следующих этапах)</p>
-        <button data-screen-target="main-dashboard">← Назад</button>
     </div>
 
     <script src="app.js"></script>

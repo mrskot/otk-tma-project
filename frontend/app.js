@@ -1,98 +1,232 @@
-/**
- * app.js - Основная логика Telegram Mini App (TMA)
- */
+// app.js - ФИНАЛЬНАЯ ВЕРСИЯ С PIN АВТОРИЗАЦИЕЙ И ПАКЕТНОЙ ФОРМОЙ
 
-const tg = window.Telegram.WebApp;
+// --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+let userRole = 'guest';
+let SECTIONS_DATA = []; 
+let USER_SECTION_ID = null; 
+let USER_SECTION_NAME = null; 
 
-// --- БАЗОВЫЕ НАСТРОЙКИ API ---
-const API_BASE_URL = '/api'; 
-const MOCK_TELEGRAM_ID_MASTER = '123456789'; 
+// --- ИНИЦИАЛИЗАЦИЯ ---
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        
+        // Проверяем наличие user.id, если нет - это заглушка, используем тестовый ID
+        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+        const tgId = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID'; 
 
-// Заглушка для заполнения списка участков (UUID!)
-const mockSections = [
-    { id: 'a8b23c4d-5e6f-7080-91a2-3b4c5d6e7f80', name: 'Участок Металлоконструкций' }, 
-    { id: '22222222-3333-4444-5555-666666666666', name: 'Участок Обмотки' },
-];
+        document.getElementById('tg-id-display').textContent = tgId;
+        fetchRoleAndShowPanel(tgId);
+    } else {
+        document.getElementById('tg-id-display').textContent = 'Web View (Not Telegram)';
+        // Если не в TMA, используем тестовый ID для входа и проверки логики
+        fetchRoleAndShowPanel('TEST_MASTER_ID'); 
+    }
 
+    // Обработчики форм
+    document.getElementById('pin-form').addEventListener('submit', handlePinSubmit);
+    document.getElementById('request-form').addEventListener('submit', handleRequestFormSubmit);
+});
 
-// ===============================================
-// 1. НАВИГАЦИЯ И УПРАВЛЕНИЕ UI
-// ===============================================
-
-function switchScreen(targetId) {
-    document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
+// --- ПАНЕЛИ И НАВИГАЦИЯ ---
+function showPanel(panelId) {
+    document.querySelectorAll('.panel-section').forEach(panel => {
+        panel.style.display = 'none';
     });
-    const targetScreen = document.getElementById(targetId);
-    if (targetScreen) {
-        targetScreen.classList.add('active');
+    document.getElementById(panelId).style.display = 'block';
+}
+
+
+// --- 1. ЛОГИКА АВТОРИЗАЦИИ И РОЛЕЙ ---
+
+async function fetchRoleAndShowPanel(telegramId) {
+    await loadSections(); 
+    
+    try {
+        const response = await fetch(`/api/user/${telegramId}`);
+        const data = await response.json();
+        
+        userRole = data.role;
+        document.getElementById('role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+        
+        // 1. Проверка верификации
+        if (data.role === 'unverified') {
+            showPanel('pin-auth-panel'); 
+            return;
+        }
+
+        // 2. Если верифицирован, сохраняем данные участка
+        USER_SECTION_ID = data.section_id || null;
+        USER_SECTION_NAME = data.section_name || null;
+
+        showPanel('main-panel');
+        // 3. Отображение логики выбора участка для мастера
+        if (userRole === 'master') {
+            renderSectionChoiceArea();
+        }
+        
+    } catch (error) {
+        console.error('Error fetching role or user not found:', error);
+        // В случае любой ошибки, предполагаем, что нужна верификация
+        showPanel('pin-auth-panel');
     }
 }
 
-function setupNavigation() {
-    // Привязываем обработчики кликов к кнопкам с data-screen-target
-    document.querySelectorAll('[data-screen-target]').forEach(element => {
-        element.addEventListener('click', (e) => {
-            e.preventDefault();
-            const target = e.currentTarget.getAttribute('data-screen-target');
-            switchScreen(target);
-        });
-    });
-}
-
-function populateSections() {
-    const select = document.getElementById('section-select');
-    if (!select) return; // Выход, если элемента нет (для безопасности)
-    
-    select.innerHTML = '<option value="">-- Выберите участок --</option>';
-
-    mockSections.forEach(section => {
-        const option = document.createElement('option');
-        option.value = section.id;
-        option.textContent = section.name;
-        select.appendChild(option);
-    });
-}
-
-function setupMainButton() {
-    if (!tg.MainButton) return;
-    
-    tg.MainButton.setText("СОЗДАТЬ НОВУЮ ЗАЯВКУ");
-    tg.MainButton.onClick(() => {
-        switchScreen('create-request');
-    });
-    // Показываем кнопку только после успешной авторизации
-    // tg.MainButton.show(); 
-}
-
-
-// ===============================================
-// 2. ОТПРАВКА ДАННЫХ
-// ===============================================
-
-async function handleSubmit(e) {
+async function handlePinSubmit(e) {
     e.preventDefault();
-    if (tg.MainButton) tg.MainButton.showProgress(true);
+    const pin = document.getElementById('pin-input').value;
+    
+    // Получаем Telegram ID из TWA или используем тестовый ID
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
+    
+    const messageDiv = document.getElementById('pin-message');
+    
+    messageDiv.textContent = '';
+    
+    try {
+        const response = await fetch('/api/auth/verify-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegram_id, pin })
+        });
+        
+        const result = await response.json();
 
-    const form = e.target;
-    const formData = new FormData(form);
+        if (response.ok) {
+            alert('✅ Успешная авторизация! Добро пожаловать.');
+            // PIN принят, перезагружаем данные, чтобы получить роль и данные участка
+            await fetchRoleAndShowPanel(telegram_id);
+        } else {
+            messageDiv.textContent = `🛑 Ошибка: ${result.error || 'Неверный PIN или внутренняя ошибка.'}`;
+        }
 
-    const telegramId = tg.initDataUnsafe.user 
-        ? tg.initDataUnsafe.user.id.toString() 
-        : MOCK_TELEGRAM_ID_MASTER;
+    } catch (error) {
+        console.error('Network error during PIN verification:', error);
+        messageDiv.textContent = '🛑 Ошибка сети. Проверьте соединение.';
+    }
+}
+
+
+// --- 2. ЛОГИКА УПРАВЛЕНИЯ УЧАСТКАМИ И ФОРМОЙ ---
+
+async function loadSections() {
+    try {
+        const response = await fetch('/api/sections');
+        if (!response.ok) throw new Error('Failed to load sections');
+        
+        SECTIONS_DATA = await response.json();
+        
+        const select = document.getElementById('section-select');
+        select.innerHTML = '<option value="">-- Выберите другой участок --</option>'; 
+        
+        SECTIONS_DATA.forEach(section => {
+            const option = document.createElement('option');
+            option.value = section.id;
+            option.textContent = section.name;
+            select.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error loading sections:', error);
+    }
+}
+
+function renderSectionChoiceArea() {
+    const area = document.getElementById('section-choice-area');
+    const select = document.getElementById('section-select');
+    let html = '';
+
+    if (USER_SECTION_ID && USER_SECTION_NAME) {
+        // Сценарий "ДА": Участок закреплен - максимальное автозаполнение
+        html = `
+            <div class="alert alert-info">
+                Ваш закрепленный участок: <strong>${USER_SECTION_NAME}</strong>.
+            </div>
+            <div class="section-choice-buttons">
+                <button type="button" class="btn btn-success" onclick="selectSection('${USER_SECTION_ID}', '${USER_SECTION_NAME}', true)">
+                    Создать заявку на ${USER_SECTION_NAME}
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="showOtherSections()">
+                    Создать заявку на ДРУГОЙ участок
+                </button>
+            </div>
+        `;
+        select.style.display = 'none'; // Скрываем select по умолчанию
+        selectSection(USER_SECTION_ID, USER_SECTION_NAME, false); // Устанавливаем в скрытое поле
+    } else {
+        // Сценарий "НЕТ": Участок не закреплен - сразу показываем список
+        html = `<label>Участок Приемки (Отправитель):</label>`;
+        select.style.display = 'block';
+        selectSection(null, null, false); // Сбрасываем выбор
+    }
+    area.innerHTML = html;
+}
+
+// Показать выпадающий список для выбора другого участка
+function showOtherSections() {
+    document.getElementById('section-choice-area').innerHTML = `<label>Выберите участок:</label>`;
+    document.getElementById('section-select').style.display = 'block';
+    document.getElementById('section-select').value = ''; // Сбрасываем выбор
+}
+
+// Установить выбранный участок (вызывается при клике на "Мой участок" или при выборе из списка)
+function selectSection(id, name, showConfirmation = false) {
+    const select = document.getElementById('section-select');
+    
+    if (id) {
+        select.value = id; 
+        if (showConfirmation) {
+             document.getElementById('section-choice-area').innerHTML = `
+                <div class="alert alert-success">Выбран участок: <strong>${name}</strong></div>
+                <button type="button" class="btn btn-secondary" onclick="renderSectionChoiceArea()">Изменить выбор</button>
+            `;
+            select.style.display = 'none';
+        }
+    } else {
+         select.value = '';
+    }
+}
+
+
+// --- 3. ОТПРАВКА ФОРМЫ (ПАКЕТНЫЙ РЕЖИМ) ---
+
+async function handleRequestFormSubmit(e) {
+    e.preventDefault();
+
+    const selectedSectionId = document.getElementById('section-select').value;
+    const formButton = e.submitter; 
+
+    if (!selectedSectionId) {
+        alert("🛑 Пожалуйста, выберите или подтвердите участок.");
+        return;
+    }
+    
+    // Деактивируем кнопку во время отправки
+    formButton.disabled = true;
+    formButton.textContent = 'Отправка...';
+
+    // Получаем Telegram ID из TWA или используем тестовый ID
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    const telegram_id = tgUser ? tgUser.id.toString() : 'TEST_MASTER_ID';
 
     const payload = {
-        telegram_id: telegramId, 
-        section_id: formData.get('section-select'),
-        transformer_type: formData.get('transformer-type'),
-        product_number: formData.get('product-number'),
-        initial_description: formData.get('initial-description'),
-        semi_product: formData.get('semi-product'),
-        drawing_number: formData.get('drawing-number'),
+        telegram_id: telegram_id,
+        section_id: selectedSectionId,
+        
+        // Данные пачки и приоритета
+        product_numbers_input: document.getElementById('product_numbers_input').value,
+        desired_priority: document.getElementById('desired_priority').value,
+        
+        // Общие атрибуты
+        transformer_type: document.getElementById('transformer_type').value,
+        drawing_number: document.getElementById('drawing_number').value,
+        semi_product: document.getElementById('semi_product').value,
+        initial_description: document.getElementById('initial_description').value,
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/request/create`, {
+        const response = await fetch('/api/request/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -101,98 +235,19 @@ async function handleSubmit(e) {
         const result = await response.json();
 
         if (response.ok) {
-            if (tg.MainButton) tg.MainButton.showProgress(false);
-            if (tg.MainButton) tg.MainButton.setParams({ text: "ЗАЯВКА СОЗДАНА!", color: tg.themeParams.button_color || '#26a5e4' });
-            
-            setTimeout(() => {
-                switchScreen('my-requests'); 
-                if (tg.MainButton) tg.MainButton.setText("СОЗДАТЬ НОВУЮ ЗАЯВКУ");
-            }, 2000);
-            
+            alert(`✅ Успех! Создано заявок: ${result.message.match(/(\d+) requests/)[1] || '1'}. Задача(и) отправлена(ы) в Bitrix24.`);
+            // Сброс формы и возврат на главную
+            document.getElementById('request-form').reset();
+            showPanel('main-panel'); 
         } else {
-            alert('Ошибка создания заявки: ' + result.error);
+            alert(`🛑 Ошибка при создании заявок: ${result.error || result.message}`);
         }
 
     } catch (error) {
-        console.error('Ошибка сети или сервера:', error);
-        alert('Не удалось связаться с сервером. Проверьте ваш бэкенд.');
+        alert('🛑 Произошла сетевая ошибка. Проверьте соединение.');
+        console.error('Network error:', error);
     } finally {
-        if (tg.MainButton) tg.MainButton.showProgress(false);
+        formButton.disabled = false;
+        formButton.textContent = 'Создать Заявку(и) и Отправить в Б24';
     }
 }
-
-
-// ===============================================
-// 3. ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ (Авторизация)
-// ===============================================
-
-async function initializeApp() {
-    
-    // !!! ТЕСТ: ЕСЛИ ЭТО ОКНО ПОЯВИТСЯ, JS РАБОТАЕТ !!!
-    alert('JS Code is running!'); 
-    
-    const telegramId = tg.initDataUnsafe.user 
-        ? tg.initDataUnsafe.user.id.toString() 
-        : MOCK_TELEGRAM_ID_MASTER;
-    
-    // ФИКС: Устанавливаем ID и Роль в заголовок
-    const userIdElement = document.getElementById('user-id');
-    if (userIdElement) {
-        userIdElement.textContent = `ID TG: ${telegramId}`; 
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/user/${telegramId}`);
-        
-        if (!response.ok) {
-            throw new Error('Пользователь не найден в системе. Добавьте свой ID в Supabase.');
-        }
-        
-        const userData = await response.json();
-        
-        const currentSectionElement = document.getElementById('current-section');
-        
-        if (userData.role === 'otk') {
-            switchScreen('all-requests'); 
-            if (currentSectionElement) currentSectionElement.textContent = `Роль: ОТК`;
-            if (tg.MainButton) tg.MainButton.hide();
-            
-        } else if (userData.role === 'master') {
-            switchScreen('main-dashboard');
-            if (currentSectionElement) currentSectionElement.textContent = `Роль: Мастер`; 
-            if (tg.MainButton) tg.MainButton.show();
-            
-        } else {
-            alert('Ваша роль не определена. Обратитесь к администратору.');
-            if (tg.MainButton) tg.MainButton.hide();
-        }
-
-    } catch (error) {
-        console.error('Ошибка инициализации:', error.message);
-        document.body.innerHTML = `<h1>Ошибка Авторизации</h1><p>${error.message}</p><p>Ваш ID: ${telegramId}</p>`;
-    }
-}
-
-
-// ===============================================
-// 4. ЗАПУСК ПРИЛОЖЕНИЯ
-// ===============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.Telegram && window.Telegram.WebApp) {
-        tg.ready();
-        tg.expand();
-    }
-    
-    // ЭТО ОЧЕНЬ ВАЖНО: убеждаемся, что навигация и поля форм настроены
-    setupNavigation(); 
-    setupMainButton();
-    populateSections(); 
-
-    const form = document.getElementById('request-form');
-    if (form) {
-        form.addEventListener('submit', handleSubmit);
-    }
-    
-    initializeApp();
-});

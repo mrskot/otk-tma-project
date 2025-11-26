@@ -1,10 +1,11 @@
-﻿// server.js - Главный файл Node.js сервера (ФИНАЛЬНАЯ ВЕРСИЯ С PIN И B24)
+﻿// server.js - ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЕМ node-fetch
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
+const nodeFetch = require('node-fetch'); // <<< ИСПРАВЛЕНИЕ: Импорт node-fetch для совместимости
 
 // --- 1. НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ ---
 const PORT = process.env.PORT || 3000; 
@@ -35,29 +36,37 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
+// --- 4. КОНФИГУРАЦИЯ ИНТЕГРАЦИИ С BITRIX24 ---
 
-// --- 4. ФУНКЦИЯ ИНТЕГРАЦИИ С BITRIX24 ---
+const PRIORITY_MAPPING = {
+    'urgent': { text: '!!! ЭКСТРЕННО !!!', b24_priority: 2, deadline_hours: 1 },
+    'as_soon_as_possible': { text: 'Как можно скорее', b24_priority: 2, deadline_hours: 4 },
+    'before_lunch': { text: 'До обеда', b24_priority: 1, deadline_hours: 4 }, 
+    'after_lunch': { text: 'После обеда', b24_priority: 1, deadline_hours: 6 },
+    'today': { text: 'Сегодня', b24_priority: 1, deadline_hours: 8 },
+    'tomorrow': { text: 'Завтра', b24_priority: 0, deadline_hours: 24 },
+    'this_week': { text: 'На этой неделе', b24_priority: 0, deadline_hours: 48 },
+    'working_order': { text: 'В рабочем порядке', b24_priority: 0, deadline_hours: 72 } 
+};
+
+function getPriorityDetails(key) {
+    return PRIORITY_MAPPING[key] || PRIORITY_MAPPING['working_order'];
+}
 
 /**
  * Отправляет данные заявки в Bitrix24 для создания задачи.
- * @param {object} requestData - Объект заявки из Supabase.
- * @returns {string} ID задачи Bitrix24 или код ошибки.
  */
 async function sendToBitrix24(requestData) {
-    console.log(`Attempting to send request ${requestData.product_number} to Bitrix24...`);
-    
-    // ПРИМЕР ФОРМИРОВАНИЯ ТЕЛА ДЛЯ Bitrix24 REST API (tasks.task.add)
+    const details = getPriorityDetails(requestData.desired_priority);
+    // Дедлайн в секундах, а не миллисекундах.
+    const deadlineTime = new Date(Date.now() + details.deadline_hours * 3600 * 1000).toISOString();
+
     const bitrixPayload = {
         fields: {
-            // Заголовок задачи
-            TITLE: `Приемка изделия: ${requestData.product_number} (${requestData.semi_product})`,
-            // Описание задачи
-            DESCRIPTION: `Участок ID: ${requestData.section_id}\nМастер ID: ${requestData.master_creator_id}\nЧертеж: ${requestData.drawing_number || 'N/A'}\nОписание: ${requestData.initial_description || ''}`,
-            
-            // Настройте эти поля под свою систему Б24
-            PRIORITY: 2, 
-            DEADLINE: new Date(Date.now() + 8 * 3600 * 1000).toISOString(), 
-            // RESPONSIBLE_ID: [ID ответственного сотрудника ОТК в Б24]
+            TITLE: `[${details.text}] Приемка изделия: ${requestData.product_number} (${requestData.semi_product})`,
+            DESCRIPTION: `Участок ID: ${requestData.section_id}\nМастер ID: ${requestData.master_creator_id}\nПриоритет приёмки: ${details.text}\nЧертеж: ${requestData.drawing_number || 'N/A'}\nОписание: ${requestData.initial_description || ''}`,
+            PRIORITY: details.b24_priority,
+            DEADLINE: deadlineTime, 
         },
     };
 
@@ -67,7 +76,7 @@ async function sendToBitrix24(requestData) {
             return `B24_MOCK_ID_${Date.now()}`; 
         }
 
-        const response = await fetch(BITRIX24_WEBHOOK_URL, {
+        const response = await nodeFetch(BITRIX24_WEBHOOK_URL, { // <<< ИСПОЛЬЗУЕМ nodeFetch
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bitrixPayload)
@@ -77,11 +86,9 @@ async function sendToBitrix24(requestData) {
         
         if (result.error) {
             console.error('Bitrix24 API Error:', result.error_description);
-            // Если ошибка в Б24, мы все равно создаем заявку в Supabase, но записываем ошибку
             return `B24_ERROR_${result.error_description}`;
         }
 
-        // Возвращаем ID созданной задачи (предполагая, что Б24 возвращает его в result.result)
         return result.result; 
 
     } catch (error) {
@@ -94,7 +101,7 @@ async function sendToBitrix24(requestData) {
 // --- 5. API МАРШРУТЫ ---
 
 /**
- * GET /api/user/:telegramId - Проверка роли и данных участка
+ * GET /api/user/:telegramId - Проверка роли, верификации и данных участка
  */
 app.get('/api/user/:telegramId', async (req, res) => {
     const telegramId = req.params.telegramId;
@@ -196,8 +203,7 @@ app.get('/api/sections', async (req, res) => {
 
 
 /**
- * POST /api/request/create
- * Создает ОДНУ или НЕСКОЛЬКО заявок (пакетный режим) И создает задачи в Bitrix24.
+ * POST /api/request/create - Создает пакет заявок и задачи в B24
  */
 app.post('/api/request/create', async (req, res) => {
     
@@ -208,7 +214,8 @@ app.post('/api/request/create', async (req, res) => {
         transformer_type, 
         initial_description,
         semi_product,
-        drawing_number
+        drawing_number,
+        desired_priority
     } = req.body; 
 
     // 1. Валидация и Парсинг
@@ -237,34 +244,31 @@ app.post('/api/request/create', async (req, res) => {
         initial_description: initial_description,
         semi_product: semi_product,
         drawing_number: drawing_number,
-        status: NEW_STATUS
+        status: NEW_STATUS,
+        desired_priority: desired_priority
     }));
     
     console.log(`Attempting to create ${requestsToInsert.length} requests for user ${telegram_id}.`); 
 
     try {
         // ШАГ 1: Создание записей в Supabase.
-        // Используем .select('*') для получения ID, созданных Supabase.
         const { data: insertedData, error: supabaseError } = await supabase
             .from('requests') 
             .insert(requestsToInsert)
-            .select('id, section_id, product_number, semi_product, drawing_number, initial_description, master_creator_id'); 
+            .select('id, section_id, product_number, semi_product, drawing_number, initial_description, master_creator_id, desired_priority'); 
 
         if (supabaseError) throw supabaseError;
 
         // ШАГ 2: Создание задач в Bitrix24 ПАРАЛЛЕЛЬНО и обновление Supabase.
         const updatePromises = insertedData.map(async (request) => {
-            // 1. Создание задачи в Б24
             const bitrixId = await sendToBitrix24(request); 
             
-            // 2. Обновление записи в Supabase ID, полученным от Б24
             await supabase
                 .from('requests')
                 .update({ bitrix_task_id: bitrixId })
                 .eq('id', request.id);
         });
 
-        // Ждем выполнения всех операций по обновлению Bitrix ID
         await Promise.all(updatePromises);
 
         res.status(201).json({ 

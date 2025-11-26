@@ -1,4 +1,4 @@
-﻿// server.js - Главный файл Node.js сервера (Финальный фикс: master_creator_id (text) и UUID моки)
+﻿// server.js - Главный файл Node.js сервера для OTK TMA Project
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -6,7 +6,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 
-// --- 1. НАСТРОЙКА ---
+// --- 1. НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ ---
 const PORT = process.env.PORT || 3000; 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
@@ -35,7 +35,8 @@ app.get('/', (req, res) => {
 // --- 4. API МАРШРУТЫ ---
 
 /**
- * GET /api/user/:telegramId 
+ * GET /api/user/:telegramId
+ * Получает роль пользователя по Telegram ID.
  */
 app.get('/api/user/:telegramId', async (req, res) => {
     const telegramId = req.params.telegramId;
@@ -63,14 +64,13 @@ app.get('/api/user/:telegramId', async (req, res) => {
 
 /**
  * POST /api/request/create
- * Создает новую заявку в таблице.
+ * Создает новую заявку в таблице 'requests'.
  */
 app.post('/api/request/create', async (req, res) => {
     
-    // ВРЕМЕННЫЕ МОК-ЗНАЧЕНИЯ ДЛЯ ОБЯЗАТЕЛЬНЫХ UUID-ПОЛЕЙ
-    // ЭТО НУЖНО, ПОТОМУ ЧТО ОНИ NOT NULL В ВАШЕЙ БД
-    const MOCK_SECTION_UUID = 'eafc1199-14b7-4127-bfe6-4afc188d6856'; 
-
+    // !!! ИСПОЛЬЗУЕМ ВАШ РЕАЛЬНЫЙ UUID УЧАСТКА ДЛЯ УДОВЛЕТВОРЕНИЯ FK !!!
+    const REAL_SECTION_UUID = 'eafc1199-14b7-4127-bfe6-4afc188d6856'; 
+    
     const { 
         telegram_id, 
         transformer_type, 
@@ -85,17 +85,17 @@ app.post('/api/request/create', async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // ENUM статус
     const NEW_STATUS = 'new'; 
     
     const payload = {
-        // master_creator_id: Теперь text, заполняем TG ID
+        // master_creator_id: Теперь TEXT, заполняем TG ID
         master_creator_id: telegram_id, 
         
-        // section_id: UUID, заполняем моком
-        section_id: MOCK_SECTION_UUID, 
+        // section_id: UUID, заполняем реальным UUID
+        section_id: REAL_SECTION_UUID, 
         
-        // otk_assignee_id: UUID, заполняем моком
-        otk_assignee_id: MOCK_OTK_ASSIGNEE_UUID, 
+        // otk_assignee_id: НЕ ВКЛЮЧАЕМ, так как теперь разрешен NULL (DROP NOT NULL)
         
         transformer_type: transformer_type,
         product_number: product_number,
@@ -112,7 +112,10 @@ app.post('/api/request/create', async (req, res) => {
             .from('requests') 
             .insert([payload]);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase Error:', error); 
+            throw error;
+        }
 
         res.status(201).json({ 
             message: 'Request created successfully', 

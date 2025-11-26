@@ -1,18 +1,14 @@
 /**
  * app.js - Основная логика Telegram Mini App (TMA)
- * Использует относительный URL для работы на Render.
  */
 
 const tg = window.Telegram.WebApp;
 
 // --- БАЗОВЫЕ НАСТРОЙКИ API ---
-// На хостинге используем относительный путь
 const API_BASE_URL = '/api'; 
-
-// --- МОК-ДАННЫЕ ДЛЯ ТЕСТИРОВАНИЯ ---
 const MOCK_TELEGRAM_ID_MASTER = '123456789'; 
 
-// Заглушка для заполнения списка участков (Используйте свои UUID!)
+// Заглушка для заполнения списка участков (UUID!)
 const mockSections = [
     { id: 'a8b23c4d-5e6f-7080-91a2-3b4c5d6e7f80', name: 'Участок Металлоконструкций' }, 
     { id: '22222222-3333-4444-5555-666666666666', name: 'Участок Обмотки' },
@@ -34,6 +30,7 @@ function switchScreen(targetId) {
 }
 
 function setupNavigation() {
+    // Привязываем обработчики кликов к кнопкам с data-screen-target
     document.querySelectorAll('[data-screen-target]').forEach(element => {
         element.addEventListener('click', (e) => {
             e.preventDefault();
@@ -45,6 +42,8 @@ function setupNavigation() {
 
 function populateSections() {
     const select = document.getElementById('section-select');
+    if (!select) return; // Выход, если элемента нет (для безопасности)
+    
     select.innerHTML = '<option value="">-- Выберите участок --</option>';
 
     mockSections.forEach(section => {
@@ -56,10 +55,14 @@ function populateSections() {
 }
 
 function setupMainButton() {
+    if (!tg.MainButton) return;
+    
     tg.MainButton.setText("СОЗДАТЬ НОВУЮ ЗАЯВКУ");
     tg.MainButton.onClick(() => {
         switchScreen('create-request');
     });
+    // Показываем кнопку только после успешной авторизации
+    // tg.MainButton.show(); 
 }
 
 
@@ -69,12 +72,11 @@ function setupMainButton() {
 
 async function handleSubmit(e) {
     e.preventDefault();
-    tg.MainButton.showProgress(true);
+    if (tg.MainButton) tg.MainButton.showProgress(true);
 
     const form = e.target;
     const formData = new FormData(form);
 
-    // Логика получения ID (используем реальный ID в TMA)
     const telegramId = tg.initDataUnsafe.user 
         ? tg.initDataUnsafe.user.id.toString() 
         : MOCK_TELEGRAM_ID_MASTER;
@@ -90,7 +92,6 @@ async function handleSubmit(e) {
     };
 
     try {
-        // !!! ВАЖНО: API_BASE_URL теперь равен '/api' !!!
         const response = await fetch(`${API_BASE_URL}/request/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -100,13 +101,12 @@ async function handleSubmit(e) {
         const result = await response.json();
 
         if (response.ok) {
-            tg.MainButton.showProgress(false);
-            tg.MainButton.setParams({ text: "ЗАЯВКА СОЗДАНА!", color: tg.themeParams.button_color || '#26a5e4' });
+            if (tg.MainButton) tg.MainButton.showProgress(false);
+            if (tg.MainButton) tg.MainButton.setParams({ text: "ЗАЯВКА СОЗДАНА!", color: tg.themeParams.button_color || '#26a5e4' });
             
             setTimeout(() => {
-                // Переходим на экран "Мои заявки"
                 switchScreen('my-requests'); 
-                tg.MainButton.setText("СОЗДАТЬ НОВУЮ ЗАЯВКУ");
+                if (tg.MainButton) tg.MainButton.setText("СОЗДАТЬ НОВУЮ ЗАЯВКУ");
             }, 2000);
             
         } else {
@@ -117,33 +117,31 @@ async function handleSubmit(e) {
         console.error('Ошибка сети или сервера:', error);
         alert('Не удалось связаться с сервером. Проверьте ваш бэкенд.');
     } finally {
-        tg.MainButton.showProgress(false);
+        if (tg.MainButton) tg.MainButton.showProgress(false);
     }
 }
 
 
 // ===============================================
-// 3. ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
+// 3. ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ (Авторизация)
 // ===============================================
 
 async function initializeApp() {
     
-    // Получаем реальный ID пользователя из Telegram
+    // !!! ТЕСТ: ЕСЛИ ЭТО ОКНО ПОЯВИТСЯ, JS РАБОТАЕТ !!!
+    alert('JS Code is running!'); 
+    
     const telegramId = tg.initDataUnsafe.user 
         ? tg.initDataUnsafe.user.id.toString() 
         : MOCK_TELEGRAM_ID_MASTER;
     
-    // !!! ФИКС ОТОБРАЖЕНИЯ ID !!!
-    // Устанавливаем ID в заголовок сразу после получения
+    // ФИКС: Устанавливаем ID и Роль в заголовок
     const userIdElement = document.getElementById('user-id');
     if (userIdElement) {
         userIdElement.textContent = `ID TG: ${telegramId}`; 
     }
-    // !!! КОНЕЦ ФИКСА !!!
 
     try {
-        // Запрос роли пользователя
-        // !!! ВАЖНО: API_BASE_URL теперь равен '/api' !!!
         const response = await fetch(`${API_BASE_URL}/user/${telegramId}`);
         
         if (!response.ok) {
@@ -152,24 +150,26 @@ async function initializeApp() {
         
         const userData = await response.json();
         
-        // Определение, какой "кабинет" показать
         const currentSectionElement = document.getElementById('current-section');
         
         if (userData.role === 'otk') {
             switchScreen('all-requests'); 
             if (currentSectionElement) currentSectionElement.textContent = `Роль: ОТК`;
+            if (tg.MainButton) tg.MainButton.hide();
+            
         } else if (userData.role === 'master') {
             switchScreen('main-dashboard');
             if (currentSectionElement) currentSectionElement.textContent = `Роль: Мастер`; 
-            tg.MainButton.show();
+            if (tg.MainButton) tg.MainButton.show();
+            
         } else {
             alert('Ваша роль не определена. Обратитесь к администратору.');
-            tg.MainButton.hide();
+            if (tg.MainButton) tg.MainButton.hide();
         }
 
     } catch (error) {
         console.error('Ошибка инициализации:', error.message);
-        document.body.innerHTML = `<h1>Ошибка Авторизации</h1><p>${error.message}</p><p>Ваш ID, который не найден в базе: ${telegramId}</p>`;
+        document.body.innerHTML = `<h1>Ошибка Авторизации</h1><p>${error.message}</p><p>Ваш ID: ${telegramId}</p>`;
     }
 }
 
@@ -179,16 +179,13 @@ async function initializeApp() {
 // ===============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Проверка, существует ли Telegram Web App API
-    if (!window.Telegram || !window.Telegram.WebApp) {
-        // Если запущено не в Telegram (например, в браузере), используем заглушку
-        console.warn("Telegram WebApp API не инициализирован. Запуск в режиме отладки.");
-    } else {
+    if (window.Telegram && window.Telegram.WebApp) {
         tg.ready();
         tg.expand();
     }
     
-    setupNavigation();
+    // ЭТО ОЧЕНЬ ВАЖНО: убеждаемся, что навигация и поля форм настроены
+    setupNavigation(); 
     setupMainButton();
     populateSections(); 
 
@@ -197,6 +194,5 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', handleSubmit);
     }
     
-    // Запускаем авторизацию и UI
     initializeApp();
 });

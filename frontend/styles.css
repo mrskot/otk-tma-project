@@ -1,217 +1,79 @@
-/*
- * styles.css - Базовые стили для имитации Telegram Mini App (TMA)
- * Использует переменные темы Telegram для адаптивности.
- */
+/* C:\otk_tma_project\frontend\styles.css */
 
-:root {
-    /* Переменные темы Telegram (используются как запасные) */
-    --tg-theme-bg-color: #f4f4f5; 
-    --tg-theme-text-color: #000000;
-    --tg-theme-hint-color: #8c8c8c;
-    --tg-theme-button-color: #64b5f6;
-    --tg-theme-button-text-color: #ffffff;
-    --tg-theme-accent-color: #4a90e2; 
-    --tg-theme-link-color: #4a90e2; 
-    --tg-theme-destructive-color: #e57373;
-    --tg-theme-secondary-bg-color: #ffffff; /* Добавлено */
-}
-
-/* Переопределение переменных с помощью Telegram WebApp API */
+/* Базовые стили для Telegram Mini App */
 body {
-    background-color: var(--tg-theme-bg-color, #f4f4f5);
-    color: var(--tg-theme-text-color, #000000);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: Arial, sans-serif;
+    padding: 10px;
     margin: 0;
-    padding: 0;
-    transition: background-color 0.3s;
+    /* Использование переменных Telegram для адаптации темы */
+    background-color: var(--tg-theme-bg-color, #f4f4f4); 
+    color: var(--tg-theme-text-color, #333333);
+    line-height: 1.6;
 }
 
+header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #ccc);
+    margin-bottom: 15px;
+}
+
+/* Стили для заголовков */
+h1, h2 {
+    color: var(--tg-theme-text-color, #000);
+    margin: 5px 0;
+}
+h3 {
+    color: var(--tg-theme-hint-color, #666);
+    margin: 10px 0 5px;
+}
+
+/* Стили для форм */
+input[type="text"], textarea, select {
+    width: 95%;
+    padding: 8px;
+    margin: 5px 0 15px 0;
+    display: inline-block;
+    border: 1px solid var(--tg-theme-secondary-bg-color, #ccc);
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+}
+label {
+    font-size: 0.9em;
+    color: var(--tg-theme-hint-color, #999);
+}
+
+/* Стили для кнопок (должны стать синими и активными) */
+button {
+    background-color: var(--tg-theme-button-color, #26a5e4);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    border: none;
+    padding: 10px 15px;
+    margin: 5px 5px 5px 0;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+}
+button:hover {
+    opacity: 0.9;
+}
+
+/* Скрываем все экраны, кроме активного */
 .screen {
     display: none;
-    padding: 16px;
-    max-width: 600px;
-    margin: 0 auto;
+    padding-bottom: 50px; /* Отступ от нижнего края */
 }
-
 .screen.active {
     display: block;
 }
 
-/* --- ХЕДЕРЫ И КНОПКИ НАЗАД --- */
-header {
-    margin-bottom: 20px;
+/* Конкретные стили для панели */
+#main-dashboard h3, #main-dashboard p {
+    display: inline-block;
+    margin-right: 20px;
 }
-
-h1, h2 {
-    color: var(--tg-theme-text-color);
-    margin: 0 0 10px 0;
-}
-
-.header-with-back {
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.header-with-back h2 {
-    margin-left: 10px;
-}
-
-.back-button {
-    background: var(--tg-theme-button-color);
-    color: var(--tg-theme-button-text-color);
-    border: none;
-    padding: 8px 15px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-
-/* --- ИНФОРМАЦИОННЫЕ КАРТОЧКИ --- */
-.user-info-card {
-    background-color: var(--tg-theme-secondary-bg-color);
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
-    color: var(--tg-theme-text-color);
-}
-
-.current-section-tag {
-    font-size: 1.2em;
-    font-weight: 700;
-    margin-bottom: 5px;
-}
-
-/* --- СТАТИСТИКА (DASHBOARD) --- */
-.quick-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-}
-
-.stat-card {
-    background-color: var(--tg-theme-secondary-bg-color);
-    padding: 15px;
-    border-radius: 12px;
-    cursor: pointer;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card:active {
-    opacity: 0.8;
-}
-
-.stat-card .icon-text {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: var(--tg-theme-hint-color);
-}
-
-.stat-card .icon {
-    font-size: 1.5em;
-    margin-right: 8px;
-}
-
-.stat-card .count {
-    display: block;
-    font-size: 1.8em;
-    font-weight: 800;
-    color: var(--tg-theme-text-color);
-}
-
-.stat-card.alert {
-    border: 2px solid var(--tg-theme-destructive-color);
-}
-
-/* --- ИМИТАЦИЯ ГЛАВНОЙ КНОПКИ (НОВАЯ ЗАЯВКА) --- */
-.main-button-imitation-container {
-    padding: 16px 0; /* Отступы сверху и снизу */
-}
-
-.new-request-button {
-    width: 100%;
-    background-color: #4CAF50; /* Зеленый цвет для имитации Telegram Main Button */
-    color: white;
-    border: none;
-    padding: 15px 20px;
-    border-radius: 10px;
-    font-size: 1.2em;
+#main-dashboard p {
     font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Небольшая тень */
-}
-
-.new-request-button:active {
-    background-color: #388E3C; /* Более темный цвет при нажатии */
-}
-
-.new-request-button .icon {
-    font-size: 1.5em;
-    margin-right: 10px;
-}
-
-/* --- ФОРМА --- */
-#request-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-label {
-    font-weight: 600;
-    color: var(--tg-theme-text-color);
-    margin-top: 5px;
-}
-
-input[type="text"], textarea, select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--tg-theme-hint-color);
-    border-radius: 8px;
-    box-sizing: border-box;
-    background-color: var(--tg-theme-secondary-bg-color);
-    color: var(--tg-theme-text-color);
-}
-
-input[type="file"] {
-    padding: 10px 0;
-}
-
-textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.submit-button {
-    background: var(--tg-theme-button-color);
-    color: var(--tg-theme-button-text-color);
-    border: none;
-    padding: 15px;
-    border-radius: 10px;
-    font-size: 1.1em;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: background-color 0.2s;
-}
-
-.submit-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.link {
-    color: var(--tg-theme-link-color);
-    cursor: pointer;
-    text-decoration: underline;
+    color: var(--tg-theme-text-color, #000);
 }

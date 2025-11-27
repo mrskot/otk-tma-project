@@ -78,6 +78,7 @@ function logout() {
 }
 
 function generatePin() {
+    // Эта функция больше не используется, так как PIN вводится вручную
     return Math.floor(1000 + Math.random() * 9000).toString(); // 4-значный PIN
 }
 
@@ -161,7 +162,7 @@ async function authenticate(event) {
     }
     
     // Шаг 2: Ищем неверифицированного пользователя по PIN для ПЕРВИЧНОЙ привязки
-    // ИСПРАВЛЕНО: Теперь ищем пользователей, у которых telegram_id равен пустой строке
+    // ИЩЕМ: по PIN-коду, с telegram_id = '' (временный заглушка) и is_verified = false
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
@@ -323,10 +324,12 @@ async function loadStats(filter = 'all') {
     `;
 }
 
+// ** ИСПРАВЛЕНИЯ: Уникальный TEMP ID, Ручной ввод и Проверка уникальности PIN **
 async function addUser(event) {
     event.preventDefault();
     const role = document.getElementById('user-role').value;
     const sectionId = document.getElementById('user-section').value || null;
+    const pin = document.getElementById('user-pin-input').value.trim(); // <-- Получаем PIN
     const messageElement = document.getElementById('add-user-message');
     
     if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
@@ -339,17 +342,34 @@ async function addUser(event) {
          return;
     }
 
-    const pin = generatePin();
+    if (pin.length !== 4 || isNaN(pin)) {
+         showMessage(messageElement, '🛑 PIN-код должен состоять ровно из 4 цифр.', 'error');
+         return;
+    }
+    
+    // ПРОВЕРКА УНИКАЛЬНОСТИ PIN
+    const { data: existingPin } = await supabaseClient
+        .from('users')
+        .select('id')
+        .eq('pin', pin)
+        .limit(1); 
+
+    if (existingPin && existingPin.length > 0) {
+        showMessage(messageElement, '🛑 Ошибка: Введенный PIN-код уже используется. Выберите другой.', 'error');
+        return;
+    }
+    
+    // Генерируем уникальный временный ID, чтобы обойти уникальность '' и NOT NULL
+    const tempTelegramId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     const { error } = await supabaseClient
         .from('users')
         .insert([{ 
             role: role, 
             section_id: sectionId,
-            pin: pin,
+            pin: pin, // Используем введенный PIN
             is_verified: false,
-            // Передаем пустую строку для обхода NOT NULL
-            telegram_id: '' 
+            telegram_id: tempTelegramId // Используем уникальный временный ID
         }]);
 
     if (error) {
@@ -389,7 +409,6 @@ async function addSection(event) {
     }
 }
 
-// Принимаем userId как строку (UUID)
 async function deleteUser(userId) {
     if (!confirm(`Вы уверены, что хотите удалить пользователя с ID ${userId}?`)) return;
 
@@ -407,21 +426,23 @@ async function deleteUser(userId) {
     }
 }
 
-// Принимаем sectionId как строку (UUID)
+// ** ИСПРАВЛЕНИЕ: Удаляем ВСЕХ связанных пользователей перед удалением участка **
 async function deleteSection(sectionId) {
-    if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
+    if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Будут удалены ВСЕ связанные пользователи, включая Мастеров и ОТК.`)) return;
 
-    const { error: updateError } = await supabaseClient
+    // 1. Удаляем ВСЕХ пользователей, привязанных к этому участку (чтобы избежать ошибок FK)
+    const { error: deleteUsersError } = await supabaseClient
         .from('users')
-        .update({ section_id: null })
+        .delete()
         .eq('section_id', sectionId);
 
-    if (updateError) {
-        console.error('Error unlinking users from section:', updateError);
-        alert(`Ошибка при отвязке пользователей: ${updateError.message}`);
+    if (deleteUsersError) {
+        console.error('Error deleting linked users:', deleteUsersError);
+        alert(`Ошибка при удалении связанных пользователей: ${deleteUsersError.message}. Отмена удаления участка.`);
         return;
     }
 
+    // 2. Удаляем участок
     const { error: deleteError } = await supabaseClient
         .from('sections')
         .delete()

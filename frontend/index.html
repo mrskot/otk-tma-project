@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TMA-ERP: Панель управления производством</title>
     
-    <link rel="stylesheet" href="style.css?v=20251127_04"> 
+    <link rel="stylesheet" href="style.css?v=20251127_06"> 
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="app.js?v=20251127_04"></script>
+    <script src="app.js?v=20251127_06"></script>
 </head>
 <body>
 
@@ -93,7 +93,13 @@
                     <select id="user-section" class="section-select">
                         </select>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Сгенерировать PIN и Добавить</button>
+                
+                <div class="form-group">
+                    <label for="user-pin-input">PIN-код (4 цифры):</label>
+                    <input type="text" id="user-pin-input" placeholder="Введите PIN (напр. 4 последние цифры)" required pattern="\d{4,4}" maxlength="4" inputmode="numeric">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Добавить Пользователя</button>
             </form>
             <div id="add-user-message" class="alert" style="display:none; margin-top: 10px;"></div>
 

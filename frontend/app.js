@@ -224,7 +224,6 @@ async function loadUsers() {
     renderUsersCards(data); 
 }
 
-// ИЗМЕНЕНИЕ: Добавление data-role для стилизации
 function renderUsersCards(users) {
     const cardList = document.getElementById('users-card-list');
     if (!cardList) return;
@@ -250,7 +249,6 @@ function renderUsersCards(users) {
     });
 }
 
-// ИЗМЕНЕНИЕ: Добавляем поиск мастера к участкам
 async function loadSections() {
     // Запрос: выбираем все участки, а также находим всех пользователей (чтобы найти мастера)
     const { data, error } = await supabaseClient
@@ -271,7 +269,6 @@ async function loadSections() {
     populateSectionSelect(data);
 }
 
-// ИЗМЕНЕНИЕ: Отображаем имя мастера (или PIN), убираем ID участка
 function renderSectionsCards(sections) {
     const cardList = document.getElementById('sections-card-list');
     if (!cardList) return;
@@ -292,6 +289,8 @@ function renderSectionsCards(sections) {
         
         const card = document.createElement('div');
         card.className = 'entity-card';
+        // У участков нет data-role, но можно использовать style для акцента
+        card.style.borderLeftColor = '#007bff'; 
         card.innerHTML = `
             <div class="entity-info">
                 <strong>🏢 ${section.name}</strong>
@@ -329,7 +328,6 @@ async function loadStats(filter = 'all') {
     `;
 }
 
-// ВОССТАНОВЛЕНИЕ: Логика добавления пользователя
 async function addUser(event) {
     event.preventDefault();
     const role = document.getElementById('user-role').value;

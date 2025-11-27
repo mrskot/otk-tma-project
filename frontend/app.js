@@ -1,9 +1,8 @@
 // ==============================================================================
 // 1. SUPABASE CONFIGURATION
 // ==============================================================================
-// !!! ВСТАВЬТЕ СЮДА ВАШИ РЕАЛЬНЫЕ КЛЮЧИ SUPABASE !!!
 const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFhcyIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
 
 // Корректная инициализация клиента Supabase
 const { createClient } = supabase;
@@ -246,10 +245,15 @@ function renderUsersCards(users) {
     });
 }
 
+// ИЗМЕНЕНИЕ: Добавляем поиск мастера к участкам
 async function loadSections() {
+    // Запрос: выбираем все участки, а также находим первого пользователя с ролью 'master'
     const { data, error } = await supabaseClient
         .from('sections')
-        .select(`*`)
+        .select(`
+            *, 
+            users ( role, pin, is_verified )
+        `)
         .order('id', { ascending: true });
 
     if (error) {
@@ -262,18 +266,31 @@ async function loadSections() {
     populateSectionSelect(data);
 }
 
+// ИЗМЕНЕНИЕ: Отображаем имя мастера (или PIN), убираем ID участка
 function renderSectionsCards(sections) {
     const cardList = document.getElementById('sections-card-list');
     if (!cardList) return;
     cardList.innerHTML = ''; 
 
     sections.forEach(section => {
+        // Находим первого пользователя с ролью 'master' на этом участке
+        const master = section.users.find(u => u.role === 'master');
+        
+        let masterInfo;
+        if (master) {
+            masterInfo = master.is_verified 
+                ? 'Мастер: Привязан'
+                : `Мастер: PIN ${master.pin}`;
+        } else {
+            masterInfo = 'Мастер не назначен';
+        }
+        
         const card = document.createElement('div');
         card.className = 'entity-card';
         card.innerHTML = `
             <div class="entity-info">
-                <strong>${section.name}</strong>
-                <span class="subtle-info">ID участка: ${section.id}</span>
+                <strong>🏢 ${section.name}</strong>
+                <span class="subtle-info">${masterInfo}</span>
             </div>
             <div class="entity-actions">
                 <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection(${section.id})">Удалить</button>
@@ -307,17 +324,20 @@ async function loadStats(filter = 'all') {
     `;
 }
 
+// ВОССТАНОВЛЕНИЕ: Логика добавления пользователя
 async function addUser(event) {
     event.preventDefault();
     const role = document.getElementById('user-role').value;
     const sectionId = document.getElementById('user-section').value || null;
     const messageElement = document.getElementById('add-user-message');
     
+    // Проверка прав (только Супер Админ может назначать Админов)
     if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
          showMessage(messageElement, '🛑 Только Супер Администратор может назначать Администраторов и Супер Администраторов.', 'error');
          return;
     }
     
+    // Проверка логики (Админу не нужен участок)
     if ((role === 'admin' || role === 'super_admin') && sectionId) {
          showMessage(messageElement, '🛑 Администратору и Супер Администратору нельзя назначать участок.', 'error');
          return;
@@ -339,9 +359,14 @@ async function addUser(event) {
         console.error('Error adding user:', error);
         showMessage(messageElement, `🛑 Ошибка добавления: ${error.message}`, 'error');
     } else {
+        // Очистка формы и обновление списка
         showMessage(messageElement, `✅ Пользователь (${role}) добавлен. PIN: ${pin}.`, 'success');
         document.getElementById('add-user-form').reset();
         loadUsers(); 
+        // Если добавлен мастер, нужно обновить список участков
+        if (role === 'master') {
+            loadSections();
+        }
     }
 }
 

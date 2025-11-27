@@ -1,30 +1,24 @@
 // ==============================================================================
 // 1. SUPABASE CONFIGURATION
 // ==============================================================================
-// ВСТАВЛЕНЫ ВАШИ КЛЮЧИ SUPABASE
 const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
 
-const { createClient } = supabase;
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
-// ==============================================================================
-// 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ==============================================================================
+// Глобальные переменные
 let userRole = 'unverified';
 let telegramId = null; 
 let USER_SECTION_ID = null;
 let USER_SECTION_NAME = null;
 let USERS = []; 
 let SECTIONS = []; 
-
+let supabaseClient = null;
 
 // ==============================================================================
-// 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 2. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==============================================================================
 
 function showMessage(element, message, type) {
+    if (!element) return;
     element.textContent = message;
     element.className = `alert alert-${type}`;
     element.style.display = 'block';
@@ -77,14 +71,8 @@ function logout() {
     showPanel('pin-auth-panel');
 }
 
-function generatePin() {
-    // Эта функция больше не используется, так как PIN вводится вручную
-    return Math.floor(1000 + Math.random() * 9000).toString(); // 4-значный PIN
-}
-
-
 // ==============================================================================
-// 4. ЛОГИКА АВТОРИЗАЦИИ И НАЧАЛА РАБОТЫ
+// 3. ЛОГИКА АВТОРИЗАЦИИ И НАЧАЛА РАБОТЫ
 // ==============================================================================
 
 async function fetchRoleAndShowPanel() {
@@ -162,7 +150,6 @@ async function authenticate(event) {
     }
     
     // Шаг 2: Ищем неверифицированного пользователя по PIN для ПЕРВИЧНОЙ привязки
-    // ИЩЕМ: по PIN-коду, с telegram_id = '' (временный заглушка) и is_verified = false
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
@@ -199,9 +186,8 @@ async function authenticate(event) {
     fetchRoleAndShowPanel();
 }
 
-
 // ==============================================================================
-// 5. ЛОГИКА АДМИН-ПАНЕЛИ (РЕНДЕРИНГ КАРТОЧЕК)
+// 4. ЛОГИКА АДМИН-ПАНЕЛИ (РЕНДЕРИНГ КАРТОЧЕК)
 // ==============================================================================
 
 async function loadAdminData() {
@@ -241,7 +227,7 @@ function renderUsersCards(users) {
                 <span class="subtle-info">PIN: ${user.pin || '—'} | TG ID: ${user.telegram_id || '—'}</span>
             </div>
             <div class="entity-actions">
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Удалить</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Удалить</button>
             </div>
         `;
         cardList.appendChild(card);
@@ -251,10 +237,7 @@ function renderUsersCards(users) {
 async function loadSections() {
     const { data, error } = await supabaseClient
         .from('sections')
-        .select(`
-            *, 
-            users ( role, pin, is_verified )
-        `)
+        .select(`*, users ( role, pin, is_verified )`)
         .order('id', { ascending: true });
 
     if (error) {
@@ -293,7 +276,7 @@ function renderSectionsCards(sections) {
                 <span class="subtle-info">${masterInfo}</span>
             </div>
             <div class="entity-actions">
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection('${section.id}')">Удалить</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection(${section.id})">Удалить</button>
             </div>
         `;
         cardList.appendChild(card);
@@ -315,6 +298,8 @@ function populateSectionSelect(sections) {
 
 async function loadStats(filter = 'all') {
     const statsContainer = document.getElementById('stats-results');
+    if (!statsContainer) return;
+    
     statsContainer.innerHTML = 'Загрузка статистики...';
     
     statsContainer.innerHTML = `
@@ -324,12 +309,11 @@ async function loadStats(filter = 'all') {
     `;
 }
 
-// ** ИСПРАВЛЕНИЯ: Уникальный TEMP ID, Ручной ввод и Проверка уникальности PIN **
 async function addUser(event) {
     event.preventDefault();
     const role = document.getElementById('user-role').value;
     const sectionId = document.getElementById('user-section').value || null;
-    const pin = document.getElementById('user-pin-input').value.trim(); // <-- Получаем PIN
+    const pin = document.getElementById('user-pin-input').value.trim();
     const messageElement = document.getElementById('add-user-message');
     
     if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
@@ -367,9 +351,9 @@ async function addUser(event) {
         .insert([{ 
             role: role, 
             section_id: sectionId,
-            pin: pin, // Используем введенный PIN
+            pin: pin,
             is_verified: false,
-            telegram_id: tempTelegramId // Используем уникальный временный ID
+            telegram_id: tempTelegramId
         }]);
 
     if (error) {
@@ -426,11 +410,10 @@ async function deleteUser(userId) {
     }
 }
 
-// ** ИСПРАВЛЕНИЕ: Удаляем ВСЕХ связанных пользователей перед удалением участка **
 async function deleteSection(sectionId) {
     if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Будут удалены ВСЕ связанные пользователи, включая Мастеров и ОТК.`)) return;
 
-    // 1. Удаляем ВСЕХ пользователей, привязанных к этому участку (чтобы избежать ошибок FK)
+    // 1. Удаляем ВСЕХ пользователей, привязанных к этому участку
     const { error: deleteUsersError } = await supabaseClient
         .from('users')
         .delete()
@@ -458,12 +441,21 @@ async function deleteSection(sectionId) {
     }
 }
 
-
 // ==============================================================================
-// 6. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
+// 5. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
 // ==============================================================================
 
 function initApp() {
+    // Инициализация Supabase
+    if (typeof supabase === 'undefined') {
+        console.error('Supabase not loaded');
+        return;
+    }
+    
+    const { createClient } = supabase;
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Привязка обработчиков форм
     const forms = [
         { id: 'pin-form', handler: authenticate },
         { id: 'add-user-form', handler: addUser },
@@ -479,11 +471,33 @@ function initApp() {
         }
     });
 
+    // Привязка обработчиков для карточек действий
+    const actionCards = document.querySelectorAll('.card-action');
+    actionCards.forEach(card => {
+        const originalOnClick = card.getAttribute('onclick');
+        if (originalOnClick) {
+            card.addEventListener('click', function() {
+                eval(originalOnClick);
+            });
+        }
+    });
+
+    // Инициализация Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
     }
     
+    // Запуск проверки роли
     fetchRoleAndShowPanel(); 
 }
 
+// Делаем функции глобально доступными для HTML onclick атрибутов
+window.showPanel = showPanel;
+window.goHome = goHome;
+window.logout = logout;
+window.deleteUser = deleteUser;
+window.deleteSection = deleteSection;
+
+// Инициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', initApp);

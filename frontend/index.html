@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TMA-ERP: Панель управления производством</title>
     
-    <link rel="stylesheet" href="style.css?v=20251127_06"> 
+    <!-- Подключаем стили ПЕРВЫМИ -->
+    <link rel="stylesheet" href="styles.css">
     
+    <!-- Затем скрипты -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="app.js?v=20251127_06"></script>
 </head>
 <body>
 
@@ -33,7 +34,7 @@
             <form id="pin-form">
                 <div class="form-group">
                     <label for="pin-input">PIN-код (4 цифры):</label>
-                    <input type="password" id="pin-input" placeholder="****" required pattern="\d{4,4}" maxlength="4" inputmode="numeric">
+                    <input type="password" id="pin-input" placeholder="****" required pattern="\d{4}" maxlength="4" inputmode="numeric">
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="margin-top: 20px; width: 100%;">Войти</button>
@@ -91,12 +92,13 @@
                 <div class="form-group">
                     <label for="user-section">Участок:</label>
                     <select id="user-section" class="section-select">
-                        </select>
+                        <option value="">Загрузка...</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
                     <label for="user-pin-input">PIN-код (4 цифры):</label>
-                    <input type="text" id="user-pin-input" placeholder="Введите PIN (напр. 4 последние цифры)" required pattern="\d{4,4}" maxlength="4" inputmode="numeric">
+                    <input type="text" id="user-pin-input" placeholder="Введите PIN (4 цифры)" required pattern="\d{4}" maxlength="4" inputmode="numeric">
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Добавить Пользователя</button>
@@ -105,7 +107,8 @@
 
             <h3>📋 Активные пользователи</h3>
             <div id="users-card-list" class="card-list">
-                </div>
+                <!-- Динамически заполняется -->
+            </div>
 
             <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
@@ -125,13 +128,14 @@
 
              <h3>📋 Список участков</h3>
             <div id="sections-card-list" class="card-list">
-                </div>
+                <!-- Динамически заполняется -->
+            </div>
 
             <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
         
         <div id="add-pf-panel" class="panel-section panel" style="display:none;">
-            <h2>➕ Добавить Тип ПФ / Изделия (Заглушка)</h2>
+            <h2>➕ Добавить Тип ПФ / Изделия</h2>
             <p>Эта панель будет содержать форму для добавления новых типов полуфабрикатов или изделий.</p>
             <button type="button" class="btn btn-secondary" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
@@ -161,7 +165,8 @@
         <div id="main-panel" class="panel-section panel" style="display:none;">
             <h2>🛠️ Ваши Заявки</h2>
             <div id="requests-list">
-                </div>
+                <!-- Динамически заполняется -->
+            </div>
             <p style="margin-top: 20px;">*Здесь будет логика отображения заявок, доступная Мастеру/ОТК.</p>
         </div>
 
@@ -170,5 +175,8 @@
     <footer>
         <p>Разработано для TMA-ERP</p>
     </footer>
+
+    <!-- Подключаем JS в конце body -->
+    <script src="app.js"></script>
 </body>
 </html>

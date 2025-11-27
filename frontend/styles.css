@@ -3,31 +3,39 @@
 /* ======================================================= */
 :root {
     --primary-color: #007bff;
-    --primary-light: #e6f2ff; /* Светлый оттенок для фона */
+    --primary-light: #e6f2ff;
     --secondary-color: #6c757d;
     --success-color: #28a745;
     --danger-color: #dc3545;
-    --background-color: #f0f2f5; /* Более мягкий фон */
+    --background-color: #f0f2f5;
     --panel-bg: #ffffff;
-    --border-radius: 8px; /* Чуть меньше радиус */
+    --border-radius: 8px;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     --text-color: #343a40;
-    --subtle-text: #6c757d; 
+    --subtle-text: #6c757d;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     margin: 0;
     padding: 0;
     background-color: var(--background-color);
     color: var(--text-color);
     line-height: 1.5;
+    min-height: 100vh;
 }
 
 main {
-    padding: 15px; 
-    max-width: 600px; 
+    padding: 15px;
+    max-width: 600px;
     margin: 0 auto;
+    width: 100%;
 }
 
 /* ======================================================= */
@@ -41,6 +49,7 @@ header {
     top: 0;
     z-index: 100;
     box-shadow: var(--shadow);
+    width: 100%;
 }
 
 header h1 {
@@ -64,11 +73,15 @@ header h1 {
     gap: 15px;
     font-weight: 500;
 }
+
 .btn-logout {
     padding: 4px 8px;
     font-size: 0.7em;
     background-color: var(--secondary-color);
     color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 /* ======================================================= */
@@ -80,6 +93,11 @@ header h1 {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     margin-bottom: 20px;
+    width: 100%;
+}
+
+.panel {
+    display: none;
 }
 
 h2 {
@@ -106,6 +124,7 @@ h3 {
     display: block;
     line-height: 1.3;
 }
+
 .subtle-info.main {
     color: var(--primary-color);
     font-weight: 600;
@@ -113,7 +132,7 @@ h3 {
 }
 
 /* ======================================================= */
-/* 4. PIN INPUT (Улучшенный дизайн) */
+/* 4. PIN INPUT */
 /* ======================================================= */
 #pin-input {
     font-size: 2em;
@@ -125,18 +144,18 @@ h3 {
     border: 2px solid var(--primary-color);
     border-radius: var(--border-radius);
     width: 100%;
-    box-sizing: border-box;
     max-width: 200px;
     display: block;
     margin: 20px auto 30px auto;
 }
+
 #pin-input:focus {
     outline: none;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.5);
 }
 
 /* ======================================================= */
-/* 5. КАРТОЧКИ СЕТКИ (ADMIN DASHBOARD) */
+/* 5. КАРТОЧКИ СЕТКИ */
 /* ======================================================= */
 .card-grid {
     display: grid;
@@ -153,32 +172,33 @@ h3 {
     transition: transform 0.2s, background-color 0.2s;
     border: 1px solid var(--primary-color);
     text-align: center;
+    cursor: pointer;
 }
 
 .card-action:hover {
     background-color: #cce0ff;
-    cursor: pointer;
     transform: translateY(-2px);
 }
+
 .card strong {
     font-size: 1.1em;
     color: var(--primary-color);
     display: block;
     margin-bottom: 5px;
 }
+
 .card-success {
     background-color: #e6fae8;
     border-color: var(--success-color);
 }
+
 .card-success strong {
     color: var(--success-color);
 }
 
-
 /* ======================================================= */
-/* 6. КАРТОЧКИ СПИСКА (ПОЛЬЗОВАТЕЛИ/УЧАСТКИ) */
+/* 6. КАРТОЧКИ СПИСКА */
 /* ======================================================= */
-
 .card-list {
     display: flex;
     flex-direction: column;
@@ -192,7 +212,7 @@ h3 {
     padding: 12px 15px;
     background: var(--panel-bg);
     border: 1px solid #dee2e6;
-    border-left: 5px solid var(--primary-color); /* Цветной акцент по умолчанию */
+    border-left: 5px solid var(--primary-color);
     border-radius: var(--border-radius);
     transition: box-shadow 0.1s;
 }
@@ -205,26 +225,39 @@ h3 {
     flex-grow: 1;
     line-height: 1.4;
 }
+
 .entity-info strong {
     font-size: 1em;
     display: block;
     color: var(--text-color);
 }
+
 .entity-actions {
     margin-left: 15px;
     display: flex;
     gap: 5px;
 }
-/* Стили для разных ролей (работают с атрибутом data-role в JS) */
-.entity-card[data-role="admin"], .entity-card[data-role="super_admin"] { border-left-color: var(--danger-color); }
-.entity-card[data-role="otk"] { border-left-color: var(--success-color); }
-.entity-card[data-role="master"] { border-left-color: #f0ad4e; } /* Оранжевый для мастера */
 
+/* Стили для разных ролей */
+.entity-card[data-role="admin"],
+.entity-card[data-role="super_admin"] {
+    border-left-color: var(--danger-color);
+}
+
+.entity-card[data-role="otk"] {
+    border-left-color: var(--success-color);
+}
+
+.entity-card[data-role="master"] {
+    border-left-color: #f0ad4e;
+}
 
 /* ======================================================= */
-/* 7. ФОРМЫ, КНОПКИ И УВЕДОМЛЕНИЯ */
+/* 7. ФОРМЫ И КНОПКИ */
 /* ======================================================= */
-.form-group { margin-bottom: 15px; }
+.form-group {
+    margin-bottom: 15px;
+}
 
 label {
     display: block;
@@ -234,13 +267,15 @@ label {
     color: var(--subtle-text);
 }
 
-input:not(#pin-input), select, textarea {
+input:not(#pin-input),
+select,
+textarea {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #ced4da;
     border-radius: 4px;
-    box-sizing: border-box;
     font-size: 1em;
+    font-family: inherit;
 }
 
 .btn {
@@ -251,24 +286,51 @@ input:not(#pin-input), select, textarea {
     font-weight: 600;
     font-size: 0.95em;
     transition: background-color 0.2s, transform 0.1s;
+    font-family: inherit;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
 }
 
 .btn:active {
     transform: translateY(1px);
 }
 
-.btn-primary { background-color: var(--primary-color); color: white; }
-.btn-primary:hover { background-color: #0056b3; }
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
 
-.btn-secondary { background-color: var(--secondary-color); color: white; }
-.btn-secondary:hover { background-color: #5a6268; }
+.btn-primary:hover {
+    background-color: #0056b3;
+}
 
-.btn-danger { background-color: var(--danger-color); color: white; }
-.btn-danger:hover { background-color: #c82333; }
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
 
-.btn-sm { padding: 4px 8px; font-size: 0.8em; }
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
 
-/* Уведомления */
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.8em;
+}
+
+/* ======================================================= */
+/* 8. УВЕДОМЛЕНИЯ */
+/* ======================================================= */
 .alert {
     padding: 10px 15px;
     margin-top: 15px;
@@ -276,12 +338,15 @@ input:not(#pin-input), select, textarea {
     font-size: 0.9em;
     font-weight: 500;
     border: 1px solid transparent;
+    display: none;
 }
+
 .alert-success {
     color: #155724;
     background-color: #d4edda;
     border-color: #c3e6cb;
 }
+
 .alert-error {
     color: #721c24;
     background-color: #f8d7da;
@@ -289,11 +354,40 @@ input:not(#pin-input), select, textarea {
 }
 
 /* ======================================================= */
-/* 8. FOOTER */
+/* 9. FOOTER */
 /* ======================================================= */
 footer {
     text-align: center;
     padding: 15px;
     color: #999;
     font-size: 0.75em;
+    margin-top: 20px;
+}
+
+/* ======================================================= */
+/* 10. АДАПТИВНОСТЬ */
+/* ======================================================= */
+@media (max-width: 480px) {
+    main {
+        padding: 10px;
+    }
+    
+    .panel-section {
+        padding: 15px;
+    }
+    
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-details {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    #user-info {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
 }

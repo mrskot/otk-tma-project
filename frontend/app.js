@@ -161,11 +161,12 @@ async function authenticate(event) {
     }
     
     // Шаг 2: Ищем неверифицированного пользователя по PIN для ПЕРВИЧНОЙ привязки
+    // ИСПРАВЛЕНО: Теперь ищем пользователей, у которых telegram_id равен пустой строке
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
         .eq('pin', pin) 
-        .is('telegram_id', null) 
+        .eq('telegram_id', '') 
         .eq('is_verified', false) 
         .single();
     
@@ -347,7 +348,7 @@ async function addUser(event) {
             section_id: sectionId,
             pin: pin,
             is_verified: false,
-            // ИСПРАВЛЕНИЕ 1: Передаем пустую строку для обхода NOT NULL
+            // Передаем пустую строку для обхода NOT NULL
             telegram_id: '' 
         }]);
 
@@ -388,7 +389,7 @@ async function addSection(event) {
     }
 }
 
-// ИСПРАВЛЕНИЕ 2: Принимаем userId как строку
+// Принимаем userId как строку (UUID)
 async function deleteUser(userId) {
     if (!confirm(`Вы уверены, что хотите удалить пользователя с ID ${userId}?`)) return;
 
@@ -402,11 +403,11 @@ async function deleteUser(userId) {
         alert(`Ошибка удаления: ${error.message}`);
     } else {
         loadUsers(); 
-        loadSections(); // Обновляем участки, чтобы убрать Мастера из списка
+        loadSections(); 
     }
 }
 
-// ИСПРАВЛЕНИЕ 2: Принимаем sectionId как строку
+// Принимаем sectionId как строку (UUID)
 async function deleteSection(sectionId) {
     if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
 

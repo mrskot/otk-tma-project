@@ -3,7 +3,7 @@
 // ==============================================================================
 // !!! ВСТАВЬТЕ СЮДА ВАШИ РЕАЛЬНЫЕ КЛЮЧИ SUPABASE !!!
 const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
-const SUPABASE_ANON_KEY = 'yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
 
 // Корректная инициализация клиента Supabase
 const { createClient } = supabase;
@@ -146,6 +146,23 @@ async function authenticate(event) {
         return;
     }
     
+    // Шаг 1: Проверяем, существует ли уже верифицированный пользователь с этим TG ID.
+    const { data: existingUser } = await supabaseClient
+        .from('users')
+        .select(`id, role, is_verified`)
+        .eq('telegram_id', currentTelegramId)
+        .eq('is_verified', true) 
+        .single();
+
+    if (existingUser) {
+        // Если пользователь уже успешно привязан, просто переводим его на главную
+        document.getElementById('pin-input').value = '';
+        showMessage(messageElement, 'Вы уже авторизованы. Выполняется переход...', 'success');
+        fetchRoleAndShowPanel();
+        return; 
+    }
+    
+    // Шаг 2: Ищем неверифицированного пользователя по PIN для ПЕРВИЧНОЙ привязки
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
@@ -159,6 +176,7 @@ async function authenticate(event) {
         return;
     }
 
+    // Шаг 3: Верификация (если нашли по PIN-коду)
     const { error: updateError } = await supabaseClient
         .from('users')
         .update({ 
@@ -402,8 +420,6 @@ async function deleteSection(sectionId) {
 // ==============================================================================
 // 6. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
 // ==============================================================================
-
-// Логика клавиатуры удалена
 
 function initApp() {
     // 1. Привязка обработчиков форм

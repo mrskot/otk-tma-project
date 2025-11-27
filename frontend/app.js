@@ -160,11 +160,13 @@ async function authenticate(event) {
     }
     
     // Шаг 2: Ищем неверифицированного пользователя по PIN для ПЕРВИЧНОЙ привязки
+    // Теперь мы полагаемся ТОЛЬКО на уникальный PIN и статус 'is_verified: false',
+    // что позволяет находить пользователей с временным temp_... ID.
     const { data: userToVerify, error: pinError } = await supabaseClient
         .from('users')
         .select('id, telegram_id, role')
         .eq('pin', pin) 
-        .eq('telegram_id', '') 
+        // УДАЛЕНО: .eq('telegram_id', '') 
         .eq('is_verified', false) 
         .single();
     

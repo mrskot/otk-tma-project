@@ -5,7 +5,6 @@
 const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
 
-// Корректная инициализация клиента Supabase
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -54,7 +53,6 @@ function showPanel(panelId) {
     } else if (panelId === 'add-user-section') {
         const superAdminOption = document.querySelector('#user-role option[value="super_admin"]');
         if (superAdminOption) {
-            // Скрываем опцию Супер Админа для обычных Админов
             superAdminOption.style.display = (userRole === 'super_admin') ? 'block' : 'none';
         }
         loadSections(); 
@@ -156,7 +154,6 @@ async function authenticate(event) {
         .single();
 
     if (existingUser) {
-        // Если пользователь уже успешно привязан, просто переводим его на главную
         document.getElementById('pin-input').value = '';
         showMessage(messageElement, 'Вы уже авторизованы. Выполняется переход...', 'success');
         fetchRoleAndShowPanel();
@@ -233,7 +230,7 @@ function renderUsersCards(users) {
         const statusText = user.is_verified ? 'Верифицирован' : 'Ожидает PIN';
         const card = document.createElement('div');
         card.className = 'entity-card';
-        card.setAttribute('data-role', user.role); // Добавление атрибута для стилизации
+        card.setAttribute('data-role', user.role); 
         
         card.innerHTML = `
             <div class="entity-info">
@@ -242,7 +239,7 @@ function renderUsersCards(users) {
                 <span class="subtle-info">PIN: ${user.pin || '—'} | TG ID: ${user.telegram_id || '—'}</span>
             </div>
             <div class="entity-actions">
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Удалить</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')">Удалить</button>
             </div>
         `;
         cardList.appendChild(card);
@@ -250,7 +247,6 @@ function renderUsersCards(users) {
 }
 
 async function loadSections() {
-    // Запрос: выбираем все участки, а также находим всех пользователей (чтобы найти мастера)
     const { data, error } = await supabaseClient
         .from('sections')
         .select(`
@@ -275,7 +271,6 @@ function renderSectionsCards(sections) {
     cardList.innerHTML = ''; 
 
     sections.forEach(section => {
-        // Находим первого пользователя с ролью 'master' на этом участке
         const master = section.users.find(u => u.role === 'master');
         
         let masterInfo;
@@ -289,7 +284,6 @@ function renderSectionsCards(sections) {
         
         const card = document.createElement('div');
         card.className = 'entity-card';
-        // У участков нет data-role, но можно использовать style для акцента
         card.style.borderLeftColor = '#007bff'; 
         card.innerHTML = `
             <div class="entity-info">
@@ -297,7 +291,7 @@ function renderSectionsCards(sections) {
                 <span class="subtle-info">${masterInfo}</span>
             </div>
             <div class="entity-actions">
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection(${section.id})">Удалить</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection('${section.id}')">Удалить</button>
             </div>
         `;
         cardList.appendChild(card);
@@ -334,13 +328,11 @@ async function addUser(event) {
     const sectionId = document.getElementById('user-section').value || null;
     const messageElement = document.getElementById('add-user-message');
     
-    // Проверка прав (только Супер Админ может назначать Админов)
     if ((role === 'admin' || role === 'super_admin') && userRole !== 'super_admin') {
          showMessage(messageElement, '🛑 Только Супер Администратор может назначать Администраторов и Супер Администраторов.', 'error');
          return;
     }
     
-    // Проверка логики (Админу не нужен участок)
     if ((role === 'admin' || role === 'super_admin') && sectionId) {
          showMessage(messageElement, '🛑 Администратору и Супер Администратору нельзя назначать участок.', 'error');
          return;
@@ -355,18 +347,17 @@ async function addUser(event) {
             section_id: sectionId,
             pin: pin,
             is_verified: false,
-            telegram_id: null 
+            // ИСПРАВЛЕНИЕ 1: Передаем пустую строку для обхода NOT NULL
+            telegram_id: '' 
         }]);
 
     if (error) {
         console.error('Error adding user:', error);
         showMessage(messageElement, `🛑 Ошибка добавления: ${error.message}`, 'error');
     } else {
-        // Очистка формы и обновление списка
         showMessage(messageElement, `✅ Пользователь (${role}) добавлен. PIN: ${pin}.`, 'success');
         document.getElementById('add-user-form').reset();
         loadUsers(); 
-        // Если добавлен мастер, нужно обновить список участков
         if (role === 'master') {
             loadSections();
         }
@@ -397,6 +388,7 @@ async function addSection(event) {
     }
 }
 
+// ИСПРАВЛЕНИЕ 2: Принимаем userId как строку
 async function deleteUser(userId) {
     if (!confirm(`Вы уверены, что хотите удалить пользователя с ID ${userId}?`)) return;
 
@@ -410,13 +402,14 @@ async function deleteUser(userId) {
         alert(`Ошибка удаления: ${error.message}`);
     } else {
         loadUsers(); 
+        loadSections(); // Обновляем участки, чтобы убрать Мастера из списка
     }
 }
 
+// ИСПРАВЛЕНИЕ 2: Принимаем sectionId как строку
 async function deleteSection(sectionId) {
     if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
 
-    // Шаг 1: Обнуляем section_id у всех пользователей, которые ссылаются на этот участок
     const { error: updateError } = await supabaseClient
         .from('users')
         .update({ section_id: null })
@@ -428,7 +421,6 @@ async function deleteSection(sectionId) {
         return;
     }
 
-    // Шаг 2: Удаляем сам участок
     const { error: deleteError } = await supabaseClient
         .from('sections')
         .delete()
@@ -450,7 +442,6 @@ async function deleteSection(sectionId) {
 // ==============================================================================
 
 function initApp() {
-    // 1. Привязка обработчиков форм
     const forms = [
         { id: 'pin-form', handler: authenticate },
         { id: 'add-user-form', handler: addUser },
@@ -466,12 +457,10 @@ function initApp() {
         }
     });
 
-    // 2. Инициализация Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
     }
     
-    // 3. Запуск проверки роли
     fetchRoleAndShowPanel(); 
 }
 

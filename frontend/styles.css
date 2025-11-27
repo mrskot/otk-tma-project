@@ -24,8 +24,8 @@ body {
 }
 
 main {
-    padding: 15px; /* Увеличим отступы для пальцев */
-    max-width: 600px; /* Оптимальная ширина для мобильных устройств */
+    padding: 15px; 
+    max-width: 600px; 
     margin: 0 auto;
 }
 
@@ -119,7 +119,7 @@ h3 {
     cursor: pointer;
 }
 .card-success {
-    background-color: #e6f7ea; /* Светло-зеленый фон для акцента */
+    background-color: #e6f7ea;
     border-color: var(--success-color);
 }
 .card-list {
@@ -128,7 +128,6 @@ h3 {
     gap: 10px;
 }
 
-/* Стиль для карточки пользователя/участка */
 .entity-card {
     display: flex;
     justify-content: space-between;
@@ -151,49 +150,25 @@ h3 {
 }
 
 .subtle-info {
-    font-size: 0.8em; /* Мельче */
-    color: var(--subtle-text); /* Серый */
+    font-size: 0.8em;
+    color: var(--subtle-text);
     display: block;
     line-height: 1.3;
 }
 
 /* ======================================================= */
-/* 4. PIN NUMPAD */
+/* 4. PIN INPUT (ВОЗВРАТ К СТАНДАРТНОМУ СТИЛЮ) */
 /* ======================================================= */
 #pin-input {
-    font-size: 2.5em; /* Крупный ввод PIN */
+    font-size: 1.5em; 
     text-align: center;
-    letter-spacing: 0.5em;
-    margin-bottom: 20px;
-    height: 60px;
-    background: #e9ecef;
+    letter-spacing: 0.2em; /* Небольшой трекинг для красоты */
+    margin-bottom: 0;
+    height: 48px;
+    background: var(--panel-bg);
 }
 
-.numpad-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    max-width: 300px; /* Ограничим ширину для удобства */
-    margin: 0 auto;
-}
-
-.numpad-btn {
-    padding: 20px 10px;
-    font-size: 1.5em;
-    font-weight: bold;
-    border-radius: 8px;
-    transition: background-color 0.1s;
-    background-color: #f1f1f1;
-    color: var(--text-color);
-    border: 1px solid #e9ecef;
-}
-
-.numpad-btn:hover {
-    background-color: #ddd;
-}
-.btn-clear { background-color: #dc354530 !important; }
-.btn-backspace { background-color: #007bff30 !important; }
-
+/* Стили для numpad удалены */
 
 /* ======================================================= */
 /* 5. ФОРМЫ И КНОПКИ */
@@ -231,3 +206,14 @@ input, select, textarea {
 .btn-secondary { background-color: var(--secondary-color); color: white; }
 .btn-danger { background-color: var(--danger-color); color: white; }
 .btn-sm { padding: 4px 8px; font-size: 0.8em; }
+
+
+/* ======================================================= */
+/* 6. FOOTER */
+/* ======================================================= */
+footer {
+    text-align: center;
+    padding: 15px;
+    color: #999;
+    font-size: 0.75em;
+}

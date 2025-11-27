@@ -32,22 +32,7 @@
             <form id="pin-form">
                 <div class="form-group">
                     <label for="pin-input">PIN-код (4 цифры):</label>
-                    <input type="password" id="pin-input" placeholder="****" required pattern="\d{4,4}" maxlength="4" inputmode="none" readonly>
-                </div>
-                
-                <div class="numpad-grid">
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="1">1</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="2">2</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="3">3</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="4">4</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="5">5</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="6">6</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="7">7</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="8">8</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="9">9</button>
-                    <button type="button" class="btn btn-secondary numpad-btn btn-clear">C</button>
-                    <button type="button" class="btn btn-secondary numpad-btn" data-value="0">0</button>
-                    <button type="button" class="btn btn-secondary numpad-btn btn-backspace">←</button>
+                    <input type="password" id="pin-input" placeholder="****" required pattern="\d{4,4}" maxlength="4" inputmode="numeric">
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="margin-top: 20px; width: 100%;">Войти</button>

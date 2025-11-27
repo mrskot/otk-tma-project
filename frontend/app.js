@@ -2,8 +2,8 @@
 // 1. SUPABASE CONFIGURATION
 // ==============================================================================
 // !!! ВСТАВЬТЕ СЮДА ВАШИ РЕАЛЬНЫЕ КЛЮЧИ SUPABASE !!!
-const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
 
 // Корректная инициализация клиента Supabase
 const { createClient } = supabase;
@@ -142,7 +142,7 @@ async function authenticate(event) {
     const currentTelegramId = tgUser ? tgUser.id.toString() : null;
     
     if (!currentTelegramId) {
-        showMessage(messageElement, '⚠️ Невозможно получить ваш Telegram ID. Убедитесь, что приложение запущено в среде Telegram WebApp.', 'error');
+        showMessage(messageElement, '⚠️ Невозможно получить ваш Telegram ID. Используйте WebApp.', 'error');
         return;
     }
     
@@ -171,7 +171,7 @@ async function authenticate(event) {
 
     if (updateError) {
         console.error('Update Error:', updateError);
-        showMessage(messageElement, 'Ошибка обновления статуса верификации. Проверьте права RLS.', 'error');
+        showMessage(messageElement, 'Ошибка обновления статуса верификации.', 'error');
         return;
     }
 
@@ -183,7 +183,7 @@ async function authenticate(event) {
 
 
 // ==============================================================================
-// 5. АДМИН-ПАНЕЛЬ: ЛОГИКА УПРАВЛЕНИЯ
+// 5. ЛОГИКА АДМИН-ПАНЕЛИ (РЕНДЕРИНГ КАРТОЧЕК)
 // ==============================================================================
 
 async function loadAdminData() {
@@ -202,43 +202,29 @@ async function loadUsers() {
     }
     
     USERS = data;
-    renderUsersTable(data);
+    renderUsersCards(data); 
 }
 
-function renderUsersTable(users) {
-    const tableBody = document.getElementById('users-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
+function renderUsersCards(users) {
+    const cardList = document.getElementById('users-card-list');
+    if (!cardList) return;
+    cardList.innerHTML = ''; 
 
     users.forEach(user => {
-        const row = tableBody.insertRow();
-        
-        // 1. Колонка: Пользователь / Участок
-        const userCell = row.insertCell();
-        userCell.innerHTML = `
-            <strong>${user.sections ? user.sections.name : '—'}</strong>
-            <span class="subtle-info">ID: ${user.id}</span>
-            <span class="subtle-info">TG ID: ${user.telegram_id || 'Не привязан'}</span>
-        `;
-        
-        // 2. Колонка: Роль / Статус
-        const roleCell = row.insertCell();
         const statusText = user.is_verified ? 'Верифицирован' : 'Ожидает PIN';
-        const pinText = user.pin ? `PIN: ${user.pin}` : 'PIN: —';
-        
-        roleCell.innerHTML = `
-            ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-            <span class="subtle-info">${statusText}</span>
-            <span class="subtle-info">${pinText}</span>
+        const card = document.createElement('div');
+        card.className = 'entity-card';
+        card.innerHTML = `
+            <div class="entity-info">
+                <strong>${user.sections ? user.sections.name : 'Без участка'} - ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</strong>
+                <span class="subtle-info">Статус: ${statusText}</span>
+                <span class="subtle-info">PIN: ${user.pin || '—'} | TG ID: ${user.telegram_id || '—'}</span>
+            </div>
+            <div class="entity-actions">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Удалить</button>
+            </div>
         `;
-        
-        // 3. Колонка: Действие
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteUser(user.id);
-        actionCell.appendChild(deleteBtn);
+        cardList.appendChild(card);
     });
 }
 
@@ -254,32 +240,28 @@ async function loadSections() {
     }
     
     SECTIONS = data;
-    renderSectionsTable(data);
+    renderSectionsCards(data); 
     populateSectionSelect(data);
 }
 
-function renderSectionsTable(sections) {
-    const tableBody = document.getElementById('sections-table-body');
-    if (!tableBody) return;
-    tableBody.innerHTML = ''; 
+function renderSectionsCards(sections) {
+    const cardList = document.getElementById('sections-card-list');
+    if (!cardList) return;
+    cardList.innerHTML = ''; 
 
     sections.forEach(section => {
-        const row = tableBody.insertRow();
-        
-        // 1. Колонка: ID / Название
-        const sectionCell = row.insertCell();
-        sectionCell.innerHTML = `
-            <strong>${section.name}</strong>
-            <span class="subtle-info">ID: ${section.id}</span>
+        const card = document.createElement('div');
+        card.className = 'entity-card';
+        card.innerHTML = `
+            <div class="entity-info">
+                <strong>${section.name}</strong>
+                <span class="subtle-info">ID участка: ${section.id}</span>
+            </div>
+            <div class="entity-actions">
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteSection(${section.id})">Удалить</button>
+            </div>
         `;
-        
-        // 2. Колонка: Действие
-        const actionCell = row.insertCell();
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Удалить';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.onclick = () => deleteSection(section.id);
-        actionCell.appendChild(deleteBtn);
+        cardList.appendChild(card);
     });
 }
 
@@ -385,7 +367,6 @@ async function deleteUser(userId) {
     }
 }
 
-// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Сначала обнуляет связи, затем удаляет
 async function deleteSection(sectionId) {
     if (!confirm(`Вы уверены, что хотите удалить участок с ID ${sectionId}? Все связанные пользователи потеряют привязку.`)) return;
 
@@ -417,9 +398,12 @@ async function deleteSection(sectionId) {
     }
 }
 
+
 // ==============================================================================
 // 6. ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ
 // ==============================================================================
+
+// Логика клавиатуры удалена
 
 function initApp() {
     // 1. Привязка обработчиков форм

@@ -1,6 +1,7 @@
 // ==============================================================================
 // 1. SUPABASE CONFIGURATION
 // ==============================================================================
+// ВСТАВЛЕНЫ ВАШИ КЛЮЧИ SUPABASE
 const SUPABASE_URL = 'https://cdgxacxsoayvjvrhivkz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZ3hhY3hzb2F5dmp2cmhpdmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTAxOTcsImV4cCI6MjA3OTU4NjE5N30.25Tji73vgXQVbIsfuEjko9DN6Sx64_MaUW9LWZmBpAk';
 
@@ -53,6 +54,7 @@ function showPanel(panelId) {
     } else if (panelId === 'add-user-section') {
         const superAdminOption = document.querySelector('#user-role option[value="super_admin"]');
         if (superAdminOption) {
+            // Скрываем опцию Супер Админа для обычных Админов
             superAdminOption.style.display = (userRole === 'super_admin') ? 'block' : 'none';
         }
         loadSections(); 
@@ -222,6 +224,7 @@ async function loadUsers() {
     renderUsersCards(data); 
 }
 
+// ИЗМЕНЕНИЕ: Добавление data-role для стилизации
 function renderUsersCards(users) {
     const cardList = document.getElementById('users-card-list');
     if (!cardList) return;
@@ -231,6 +234,8 @@ function renderUsersCards(users) {
         const statusText = user.is_verified ? 'Верифицирован' : 'Ожидает PIN';
         const card = document.createElement('div');
         card.className = 'entity-card';
+        card.setAttribute('data-role', user.role); // Добавление атрибута для стилизации
+        
         card.innerHTML = `
             <div class="entity-info">
                 <strong>${user.sections ? user.sections.name : 'Без участка'} - ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</strong>
@@ -247,7 +252,7 @@ function renderUsersCards(users) {
 
 // ИЗМЕНЕНИЕ: Добавляем поиск мастера к участкам
 async function loadSections() {
-    // Запрос: выбираем все участки, а также находим первого пользователя с ролью 'master'
+    // Запрос: выбираем все участки, а также находим всех пользователей (чтобы найти мастера)
     const { data, error } = await supabaseClient
         .from('sections')
         .select(`

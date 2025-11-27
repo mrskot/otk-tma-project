@@ -38,6 +38,16 @@ function showPanel(panelId) {
         console.error('Panel not found:', panelId);
     }
     
+    // Управление фиксированной кнопкой "Назад"
+    const backButton = document.getElementById('fixed-back-button');
+    if (backButton) {
+        if (panelId === 'admin-panel' || panelId === 'pin-auth-panel' || panelId === 'main-panel') {
+            backButton.style.display = 'none';
+        } else {
+            backButton.style.display = 'block';
+        }
+    }
+    
     if (panelId === 'admin-panel') {
         loadAdminData();
         const titleDisplay = document.getElementById('admin-title-display');
@@ -468,17 +478,6 @@ function initApp() {
             element.addEventListener('submit', f.handler); 
         } else {
             console.error(`Error: Form with ID "${f.id}" not found. Check index.html`);
-        }
-    });
-
-    // Привязка обработчиков для карточек действий
-    const actionCards = document.querySelectorAll('.card-action');
-    actionCards.forEach(card => {
-        const originalOnClick = card.getAttribute('onclick');
-        if (originalOnClick) {
-            card.addEventListener('click', function() {
-                eval(originalOnClick);
-            });
         }
     });
 

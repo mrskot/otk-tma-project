@@ -109,8 +109,6 @@
             <div id="users-card-list" class="card-list">
                 <!-- Динамически заполняется -->
             </div>
-
-            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
 
         <div id="add-section-panel" class="panel-section panel" style="display:none;">
@@ -130,14 +128,11 @@
             <div id="sections-card-list" class="card-list">
                 <!-- Динамически заполняется -->
             </div>
-
-            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
         
         <div id="add-pf-panel" class="panel-section panel" style="display:none;">
             <h2>➕ Добавить Тип ПФ / Изделия</h2>
             <p>Эта панель будет содержать форму для добавления новых типов полуфабрикатов или изделий.</p>
-            <button type="button" class="btn btn-secondary" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
 
         <div id="stats-panel" class="panel-section panel" style="display:none;">
@@ -152,14 +147,11 @@
             <div id="stats-results" style="margin-top: 20px;">
                 Загрузка...
             </div>
-
-            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="showPanel('admin-panel')">← Назад</button>
         </div>
 
         <div id="create-request-section" class="panel-section panel" style="display:none;">
             <h2>📝 Создание Заявки (Тест)</h2>
             <p>Эта панель будет использоваться Мастерами для создания заявок.</p>
-            <button type="button" class="btn btn-secondary" style="margin-top: 15px;" onclick="goHome()">← На главную</button>
         </div>
 
         <div id="main-panel" class="panel-section panel" style="display:none;">
@@ -171,6 +163,11 @@
         </div>
 
     </main>
+
+    <!-- ФИКСИРОВАННАЯ КНОПКА НАЗАД -->
+    <div id="fixed-back-button" class="fixed-back-button" style="display: none;">
+        <button type="button" class="btn btn-secondary" onclick="showPanel('admin-panel')">← Назад к панели управления</button>
+    </div>
 
     <footer>
         <p>Разработано для TMA-ERP</p>
